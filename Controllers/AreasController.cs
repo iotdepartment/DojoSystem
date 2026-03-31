@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using TrainingsDashboard.Models;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Linq;
+using TrainingsDashboard.Models;
 
 namespace TrainingsDashboard.Controllers
 {
+    [Authorize]
+    [NoCache]
     public class AreasController : Controller
     {
         private readonly AppDbContext _context;

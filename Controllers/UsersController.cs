@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -6,6 +7,8 @@ using TrainingsDashboard.Models;
 
 namespace TrainingsDashboard.Controllers
 {
+    [Authorize]
+    [NoCache]
     public class UsersController : Controller
     {
         private readonly AppDbContext _context;

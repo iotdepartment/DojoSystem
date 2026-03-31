@@ -67,7 +67,9 @@ namespace TrainingsDashboard.Controllers
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Index");
+
+            // Redirige explícitamente al login
+            return RedirectToAction("Index", "Login");
         }
     }
 }
