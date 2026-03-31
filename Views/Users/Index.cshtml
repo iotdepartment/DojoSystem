@@ -1,0 +1,198 @@
+﻿@model IEnumerable<TrainingsDashboard.Models.Users>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+
+<div class="row">
+    <h2 class="text-start">Usuarios <i class="bi bi-people"></i></h2>
+    <hr class="border border-dark border-0 mb-4 opacity-100">
+</div>
+
+<div class="row">
+    <div class="card mb-4 mt-3 p-4 rounded-3 shadow-lg">
+        <div class="row mt-2">
+            <div class="col-12">
+                <button class="btn btn-success mb-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#CreateUserModal" onclick="openCreateUserModal()">
+                    <i class="bi bi-person-plus"></i>
+                    Nuevo Usuario
+                </button>
+            </div>
+        </div>
+
+        @if (Model != null && Model.Any())
+        {
+            <div class="row dt-row mt-3">
+                <div class="table-responsive col-sm-12">
+
+                    <table id="Users" class="table table-striped table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Correo</th>
+                                <th>Funcion</th>
+                                <th>Fecha de Admision</th>
+                                <th>Area</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>@item?.UserName</td>
+                                    <td>@item?.Email</td>
+                                    <td>@item?.Role</td>
+                                    <td>@item?.AdmissionDate</td>
+                                    <td>@item?.Area</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                </div>
+            </div>
+        }
+        else
+        {
+            <p>No users.</p>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="CreateUserModal" tabindex="-1" aria-labelledby="CreateUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="CreateUserModalLabel">Nuevo Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="CreateUserForm" method="post" action="/Users/Create">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de Usuario</label>
+                        <input type="text" name="UserName" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Correo</label>
+                        <input type="email" name="Email" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="PasswordHash" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select name="Role" class="form-select" required>
+                            <option value="">-- Seleccione el rol --</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Requisitor">Requisitor</option>
+                            <option value="Manage">Manager</option>
+                            <option value="Responsible">Responsible</option>
+                            <option value="Guest">Guest</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Area</label>
+                        <select name="Area" id="AreaSelect" class="form-select" required>
+                            <option value="">-- Select Area --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success rounded-pill">Guardar</button>
+                    <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <p>¿Seguro que deseas eliminar este Team Member?</p>
+                <input type="hidden" id="deleteId" />
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="btnConfirmDelete" class="btn btn-danger">Eliminar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>  
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+         $(document).ready(function () {
+
+          $('#Users').DataTable({
+             pageLength: 10,
+             order: [],
+             responsive: true,
+             autoWidth: false,
+             language: {
+                 url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+             }
+         });
+
+         });
+
+        function openCreateUserModal() {
+             var modal = new bootstrap.Modal(document.getElementById('CreateUserModal'));
+             modal.show();
+        }
+
+
+         $(document).ready(function () {
+             // Diccionario de opciones según Role
+             const areaOptions = {
+                 "Admin": ["Admin"],
+                 "Requisitor": ["Finish Good Planner"],
+                 "Manager": ["Manager"],
+                 "Responsible": ["PPCC", "Oven", "Extruder", "Inspection", "Assembly", "Safe Launch"],
+                 "Guest": ["Guest"]
+             };
+
+             // Evento cuando cambia el Role
+             $('select[name="Role"]').on('change', function () {
+                 const selectedRole = $(this).val();
+                 const $areaSelect = $('#AreaSelect');
+
+                 // Limpia opciones previas
+                 $areaSelect.empty();
+
+                 if (selectedRole && areaOptions[selectedRole]) {
+                     // Agrega las nuevas opciones
+                     areaOptions[selectedRole].forEach(function (opt) {
+                         $areaSelect.append(new Option(opt, opt));
+                     });
+                 } else {
+                     // Si no hay role seleccionado, muestra placeholder
+                     $areaSelect.append(new Option("-- Select Area --", ""));
+                 }
+             });
+         });
+    </script>
+}
