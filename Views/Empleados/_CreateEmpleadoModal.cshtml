@@ -24,11 +24,22 @@
                         <input type="number" name="NumeroEmpleado" class="form-control" required />
                     </div>
 
+
                     <div class="mb-3">
                         <label class="form-label">Área</label>
                         <select asp-for="AreaID" class="form-select" asp-items="ViewBag.Areas" required>
                             <option value="">Seleccione un área</option>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Supervisor</label>
+                        <input type="number" name="SupervisorID" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Turno</label>
+                        <input type="number" name="TurnoID" class="form-control" required />
                     </div>
                 </div>
 

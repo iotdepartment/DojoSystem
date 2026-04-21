@@ -1,8 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using System.Linq;
 using TrainingsDashboard.Models;
 
 namespace TrainingsDashboard.Controllers
@@ -18,7 +15,8 @@ namespace TrainingsDashboard.Controllers
         }
         public IActionResult Index()
         {
-            return View();
+            var entrenadores = _context.Entrenadores.ToList();
+            return View(entrenadores);
         }
     }
 }

@@ -1,0 +1,41 @@
+﻿@model TrainingsDashboard.Models.Turnos
+
+<div class="modal fade" id="CreateTurnoModal" tabindex="-1" aria-labelledby="CreateTurnoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="CreateTurnoModalLabel">Nuevo Turno</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="CreateTurnoForm" method="post" asp-controller="Turnos" asp-action="Create">
+                @Html.AntiForgeryToken()
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Turno</label>
+                        <input type="text" name="NombreTurno" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Codigo del Turno</label>
+                        <input type="number" name="CodigodeTurno" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Horarios</label>
+                        <input type="text" name="Horarios" class="form-control" required />
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success rounded-pill">Guardar</button>
+                    <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
