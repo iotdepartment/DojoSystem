@@ -1,7 +1,4 @@
-﻿using TrainingsDashboard.Models;
-using System.Collections.Generic;
-using System.Diagnostics.Metrics;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace TrainingsDashboard.Models
 {
@@ -11,10 +8,15 @@ namespace TrainingsDashboard.Models
             : base(options)
         {
         }
-        public DbSet<Users> Users { get; set; }
         public DbSet<Areas> Areas { get; set; }
         public DbSet<Empleados> Empleados { get; set; }
         public DbSet<Entrenadores> Entrenadores { get; set; }
+        public DbSet<Turnos> Turnos { get; set; }
+        public DbSet<Entrenamientos> Entrenamientos { get; set; }
+        public DbSet<EntrenamientosProgramados> EntrenamientosProgramados { get; set; }
+        public DbSet<Supervisores> Supervisores { get; set; }
+
+        public DbSet<Usuarios> Usuarios { get; set; }
 
     }
 }

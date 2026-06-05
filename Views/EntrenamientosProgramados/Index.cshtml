@@ -1,0 +1,292 @@
+﻿@model IEnumerable<TrainingsDashboard.Models.EntrenamientosProgramados>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<div class="container-fluid">
+    <div class="card rounded rounded-3 title-glass p-3">
+        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
+            <h2 class="m-0 text-start fw-bold">Programación de Entrenamientos</h2>
+        </div>
+
+        <div class="row mb-4 align-items-center">
+            <div class="col-auto">
+                <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevaProgramacion">
+                    <i class="fas fa-calendar-plus"></i> Programar Entrenamiento
+                </button>
+            </div>
+            <div class="col">
+                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar por empleado o entrenamiento...">
+            </div>
+        </div>
+
+        <div class="row g-4 align-content-center" id="programacionContainer">
+            @foreach (var p in Model)
+            {
+                // Recuperar nombres de los catálogos en memoria
+                var entrenamiento = (ViewBag.ListaEntrenamientos as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EntrenamientoID?.ToString())?.Text ?? "Sin Curso";
+                var empleado = (ViewBag.ListaEmpleados as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EmpleadoID?.ToString())?.Text ?? "Sin Empleado";
+                var area = (ViewBag.ListaAreas as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.AreaID?.ToString())?.Text ?? "Sin Área";
+                var turno = (ViewBag.ListaTurnos as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.TurnoID?.ToString())?.Text ?? "Sin Turno";
+                var supervisor = (ViewBag.ListaSupervisores as List<SelectListItem>)?.FirstOrDefault(x => x.Value == (p.SupervisorID ?? 0).ToString())?.Text ?? "NA";
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 programacion-card">
+                    <div class="card card-area shadow-sm p-3 text-center position-relative h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <!-- Botón de engrane -->
+                            <button class="settings-btn">
+                                <i class="fas fa-cog"></i>
+                            </button>
+
+                            <!-- Menú flotante -->
+                            <div class="settings-menu">
+                                <a href="#" class="edit-programacion text-dark" data-id="@p.ID"><i class="fas fa-edit"></i> Editar / Estatus</a>
+                                <a href="#" class="delete-programacion text-danger" data-id="@p.ID" data-nombre="@entrenamiento"><i class="fas fa-trash"></i> Cancelar/Eliminar</a>
+                            </div>
+
+                            <div class="my-2 text-primary">
+                                <i class="fas fa-calendar-check fa-2.5x"></i>
+                            </div>
+
+                            <div class="card-body p-1 text-start">
+                                <h6 class="fw-bold target-course text-center text-primary mb-2">@entrenamiento</h6>
+                                <p class="card-text mb-1 small"><strong>Empleado:</strong> <span class="target-emp">@empleado</span></p>
+                                <p class="card-text mb-1 small"><strong>Área:</strong> @area</p>
+                                <p class="card-text mb-1 small"><strong>Turno:</strong> @turno</p>
+                                <p class="card-text mb-1 small"><strong>Supervisor:</strong> @supervisor</p>
+                                <hr class="my-1">
+                                <p class="card-text mb-0 small text-muted"><strong>Prog:</strong> @(p.FechaProgramacion?.ToString("dd/MM/yyyy") ?? "-")</p>
+                                <p class="card-text mb-0 small text-muted"><strong>Asistió:</strong> @(p.FechaAsistencia?.ToString("dd/MM/yyyy") ?? "-")</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            @if (p.Status == 1)
+                            {
+                                <span class="badge bg-warning text-dark rounded-pill w-100 p-2">Programado</span>
+                            }
+                            else if (p.Status == 2)
+                            {
+
+                                <span class="badge bg-success rounded-pill w-100 p-2">Asistió</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-danger rounded-pill w-100 p-2">Cancelado</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CREAR NUEVA PROGRAMACIÓN (ACTUALIZADO) -->
+<div class="modal fade" id="ModalNuevaProgramacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-success text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold"><i class="fas fa-calendar-plus me-2"></i>Nueva Programación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Crear" asp-controller="EntrenamientosProgramados" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+
+                    <!-- Input oculto para guardar el SupervisorID recuperado dinámicamente -->
+                    <input type="hidden" name="SupervisorID" id="create_SupervisorID" value="0" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Entrenamiento / Curso</label>
+                        <select name="EntrenamientoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEntrenamientos" required>
+                            <option value="" selected disabled>-- Selecciona el Curso --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Empleado</label>
+                        <!-- Se añade el id "create_EmpleadoID" para vincular el evento en JavaScript -->
+                        <select name="EmpleadoID" id="create_EmpleadoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEmpleados" required>
+                            <option value="" selected disabled>-- Selecciona el Empleado --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha de Programación</label>
+                        <!-- NUEVO: Ahora el usuario elige libremente qué día agendar -->
+                        <input type="date" name="FechaProgramacion" class="form-control rounded-pill" required />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Área</label>
+                            <select name="AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
+                                <option value="" selected disabled>-- Área --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Turno</label>
+                            <select name="TurnoID" class="form-select rounded-pill" asp-items="ViewBag.ListaTurnos" required>
+                                <option value="" selected disabled>-- Turno --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Programar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script src="https://jquery.com"></script>
+    <script>
+                $(document).ready(function () {
+            initBuscador();
+            initMenuFlotante();
+            initModuloEditar();
+            initModuloEliminar();
+            initSupervisorAutomatico(); // NUEVO: Inicializador de asignación en tiempo real
+        });
+
+        // ==========================================
+        // NUEVO: DETECTAR EMPLEADO Y TRAER SU SUPERVISOR
+        // ==========================================
+        function initSupervisorAutomatico() {
+            $('#create_EmpleadoID').on('change', function () {
+                var empleadoId = $(this).val();
+
+                if (empleadoId) {
+                    // Hacemos una consulta rápida al servidor en segundo plano
+                    $.ajax({
+                        url: '/EntrenamientosProgramados/ObtenerSupervisorEmpleado',
+                        type: 'GET',
+                        data: { empleadoId: empleadoId },
+                        success: function (res) {
+                            // Guardamos el ID del supervisor del empleado en el input oculto
+                            $('#create_SupervisorID').val(res.supervisorId);
+                        },
+                        error: function () {
+                            // En caso de falla, asegurar que envíe 0 o NA
+                            $('#create_SupervisorID').val(0);
+                        }
+                    });
+                }
+            });
+        }
+
+
+        // ==========================================
+        // 1. FILTRADO EN TIEMPO REAL
+        // ==========================================
+        function initBuscador() {
+            $("#searchInput").on("keyup", function () {
+                var value = $(this).val().toLowerCase();
+                $(".programacion-card").filter(function () {
+                    var textCourse = $(this).find(".target-course").text().toLowerCase();
+                    var textEmp = $(this).find(".target-emp").text().toLowerCase();
+                    $(this).toggle(textCourse.indexOf(value) > -1 || textEmp.indexOf(value) > -1);
+                });
+            });
+        }
+
+        // ==========================================
+        // 2. INTERFAZ (BOTÓN DE ENGRANE)
+        // ==========================================
+        function initMenuFlotante() {
+            $(document).on('click', '.settings-btn', function (e) {
+                e.stopPropagation();
+                $('.settings-menu').not($(this).next()).hide();
+                $(this).next().toggle();
+            });
+            $(document).on('click', function () {
+                $('.settings-menu').hide();
+            });
+        }
+
+        // ==========================================
+        // 3. MÓDULO DE EDICIÓN (AJAX)
+        // ==========================================
+        function initModuloEditar() {
+            $('.edit-programacion').on('click', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+
+                $.ajax({
+                    url: '/EntrenamientosProgramados/ObtenerProgramacion',
+                    type: 'GET',
+                    data: { id: id },
+                    success: function (data) {
+                        // Inyectar datos planos mapeados del modelo
+                        $('#edit_ID').val(data.id);
+                        $('#edit_Status').val(data.status);
+                        $('#edit_EntrenamientoID').val(data.entrenamientoID);
+                        $('#edit_EmpleadoID').val(data.empleadoID);
+                        $('#edit_AreaID').val(data.areaID);
+                        $('#edit_SupervisorID').val(data.supervisorID ?? 0);
+                        $('#edit_TurnoID').val(data.turnoID);
+                        $('#edit_FechaProgramacion').val(data.fechaProgramacion);
+
+                        // Limpiar y formatear la fecha para el input de tipo 'date' (YYYY-MM-DD)
+                        if (data.fechaAsistencia) {
+                            $('#edit_FechaAsistencia').val(data.fechaAsistencia.substring(0, 10));
+                        } else {
+                            $('#edit_FechaAsistencia').val('');
+                        }
+
+                        // Desplegar modal de edición
+                        var editModal = new bootstrap.Modal(document.getElementById('ModalEditarProgramacion'));
+                        editModal.show();
+                    },
+                    error: function() {
+                        alert('Error al intentar recuperar la información de la programación.');
+                    }
+                });
+            });
+        }
+
+        // ==========================================
+        // 4. MÓDULO DE ELIMINACIÓN (AJAX)
+        // ==========================================
+        function initModuloEliminar() {
+            $('.delete-programacion').on('click', function (e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var nombre = $(this).data('nombre');
+
+                $('#DeleteID').val(id);
+                $('#deleteMessage').html('¿Estás seguro de que deseas eliminar la programación de:<br><strong class="text-danger">' + nombre + '</strong>?');
+
+                var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarProgramacion'));
+                deleteModal.show();
+            });
+
+            $('#btnConfirmDelete').on('click', function () {
+                var id = $('#DeleteID').val();
+                var $btn = $(this);
+
+                // Deshabilitar botón durante el proceso
+                $btn.prop('disabled', true).text('Procesando...');
+
+                $.ajax({
+                    url: '/EntrenamientosProgramados/Eliminar',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function () {
+                        window.location.reload();
+                    },
+                    error: function () {
+                        alert('Ocurrió un error al intentar eliminar el registro.');
+                        $btn.prop('disabled', false).text('Eliminar');
+                    }
+                });
+            });
+        }
+    </script>
+}

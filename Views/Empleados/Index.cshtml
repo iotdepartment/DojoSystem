@@ -1,133 +1,382 @@
 ﻿@model IEnumerable<TrainingsDashboard.Models.Empleados>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-<div class="row">
-    <h2 class="text-start">Empleados <i class="bi bi-person-vcard-fill"></i></h2>
-    <hr class="border border-dark border-0 mb-4 opacity-100">
-</div>
+<div class="container-fluid">
+    <div class="card rounded rounded-3 title-glass p-3">
+        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
+            <h2 class="m-0 text-start fw-bold">Gestión de Empleados</h2>
+        </div>
 
-<div class="row">
-    <div class="card mb-4 mt-3 p-4 rounded-3 shadow-lg">
-        <div class="row mt-2">
-            <div class="col-12">
-                <button class="btn btn-success mb-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#CreateEmpleadosModal">
-                    <i class="bi bi-person-plus"></i>
-                    Nuevo Empleado
+        <div class="row mb-4 align-items-center">
+            <div class="col-auto">
+                <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevoUsuario">
+                    <i class="fas fa-user-plus"></i> Nuevo Empleado
                 </button>
+            </div>
+            <div class="col">
+                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar Empleado...">
             </div>
         </div>
 
-        @if (Model != null && Model.Any())
-        {
-            <div class="row dt-row mt-3">
-                <div class="table-responsive col-sm-12">
-                    <table id="Empleados" class="table table-striped table-bordered">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Numero Empleado</th>
-                                <th>Area</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in Model)
-                            {
-                                <tr>
-                                    <td>@item.NombreEmpleado</td>
-                                    <td>@item.NumeroEmpleado</td>
-                                    <td>@item.Area?.Area</td>
-                                    <td>
-                                        <button type="button" class="btn btn-danger btn-sm rounded-pill"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#deleteConfirmModal"
-                                                onclick="setDeleteId(@item.ID)">
-                                            <i class="bi bi-trash"></i> Eliminar
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+        <div class="row g-4 align-content-center">
+            @foreach (var u in Model)
+            {
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card card-area shadow-lg p-3 text-center position-relative">
+                        <!-- Botón de engrane -->
+                        <button class="settings-btn">
+                            <i class="fas fa-cog"></i>
+                        </button>
+
+                        <!-- Menú flotante -->
+                        <div class="settings-menu">
+                            <a href="#" class="edit-user" data-id="@u.ID"><i class="fas fa-edit"></i> Editar</a>
+                            <a href="#" class="delete-user text-danger" data-id="@u.ID" data-nombre="@u.NombreEmpleado"><i class="fas fa-trash"></i> Eliminar</a>
+                        </div>
+
+                        <!-- La propiedad u.Foto ya contiene la URL correcta calculada en el controlador -->
+                        <img src="@u.Foto" class="profile-img mb-3" alt="Foto de @u.NombreEmpleado">
+
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold mb-3">@u.NombreEmpleado</h5>
+                            <p class="card-text mb-1"><strong>No. Empleado:</strong> @u.NumeroEmpleado</p>
+                            <p class="card-text mb-1">
+                                <strong>Área:</strong>
+                                @{
+                                    // Buscamos directamente en la lista que usamos para el modal, evitando errores de carga
+                                    var listaAreas = ViewBag.ListaAreas as List<SelectListItem>;
+                                    var areaSelect = listaAreas?.FirstOrDefault(a => a.Value == u.AreaID?.ToString());
+                                    @(areaSelect?.Text ?? "Sin Área")
+                                }
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Turno:</strong>
+                                @{
+                                    var listaTurnos = ViewBag.ListaTurnos as List<SelectListItem>;
+                                    var turnoSelect = listaTurnos?.FirstOrDefault(t => t.Value == u.TurnoID?.ToString());
+                                    @(turnoSelect?.Text ?? "Sin Turno")
+                                }
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Supervisor:</strong>
+                                @{
+                                    var listaSupervisores = ViewBag.ListaSupervisores as List<SelectListItem>;
+                                    var supervisorSelect = listaSupervisores?.FirstOrDefault(s => s.Value == u.SupervisorID?.ToString());
+                                    @(supervisorSelect?.Text ?? "Sin Supervisor")
+                                }
+                            </p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        }
-        else
-        {
-            <p>No hay empleados registrados.</p>
-        }
+            }
+        </div>
     </div>
 </div>
-@await Html.PartialAsync("_CreateEmpleadoModal", new TrainingsDashboard.Models.Empleados())
 
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+<!-- Modal Nuevo Usuario -->
+<div class="modal fade" id="ModalNuevoUsuario" tabindex="-1" aria-labelledby="ModalNuevoUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-primary text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold" id="ModalNuevoUsuarioLabel">
+                    Registrar Nuevo Empleado
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Crear" asp-controller="Empleados" method="post" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre del Empleado</label>
+                        <input type="text" name="NombreEmpleado" class="form-control rounded-pill" placeholder="Ej. Juan Pérez" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">No. de Empleado</label>
+                        <input type="number" name="NumeroEmpleado" class="form-control rounded-pill" placeholder="Ej. 10452" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Área</label>
+                        <select name="AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
+                            <option value="">-- Selecciona un Área --</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Supervisor</label>
+                            <!-- Al no tener una opción vacía por defecto, seleccionará automáticamente el primer elemento (NA) -->
+                            <select name="SupervisorID" class="form-select rounded-pill" asp-items="ViewBag.ListaSupervisores">
+                                <option value="" selected disabled>-- Supervisor --</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Turno</label>
+                            <select name="TurnoID" class="form-select rounded-pill" asp-items="ViewBag.ListaTurnos" required>
+                                <option value="" selected disabled>-- Turno --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fotografía de Perfil</label>
+                        <input type="file" name="FotoFile" class="form-control rounded-3" accept=".jpg,.jpeg,.png" />
+                        <div class="form-text">Formatos permitidos: JPG, JPEG o PNG.</div>
+                    </div>
+
+                    <input type="hidden" name="Activo" value="1" />
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="submit" class="btn btn-success rounded-pill px-4">Guardar</button>
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Usuario -->
+<div class="modal fade" id="ModalEditarUsuario" tabindex="-1" aria-labelledby="ModalEditarUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-warning text-dark rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold" id="ModalEditarUsuarioLabel">
+                    <i class="fas fa-edit me-2"></i>Editar Empleado
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Editar" asp-controller="Empleados" method="post" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <!-- Campo oculto muy importante para saber qué registro actualizar -->
+                    <input type="hidden" name="ID" id="edit_ID" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre del Empleado</label>
+                        <input type="text" name="NombreEmpleado" id="edit_Nombre" class="form-control rounded-pill" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">No. de Empleado</label>
+                        <input type="number" name="NumeroEmpleado" id="edit_Numero" class="form-control rounded-pill" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Área</label>
+                        <select name="AreaID" id="edit_AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
+                            <option value="">-- Selecciona un Área --</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Supervisor</label>
+                            <select name="SupervisorID" id="edit_SupervisorID" class="form-select rounded-pill" asp-items="ViewBag.ListaSupervisores">
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Turno</label>
+                            <select name="TurnoID" id="edit_TurnoID" class="form-select rounded-pill" asp-items="ViewBag.ListaTurnos" required>
+                                <option value="" disabled>-- Turno --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Cambiar Fotografía</label>
+                        <input type="file" name="FotoFile" class="form-control rounded-3" accept=".jpg,.jpeg,.png" />
+                        <div class="form-text">Dejar vacío para conservar la foto actual.</div>
+                    </div>
+
+                    <input type="hidden" name="Activo" id="edit_Activo" value="1" />
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold">Guardar Cambios</button>
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="ModalEliminarEmpleado" tabindex="-1" aria-labelledby="ModalEliminarEmpleadoLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
 
+            <!-- Header -->
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Confirmar Eliminación</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="ModalEliminarEmpleadoLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
 
+            <!-- Body -->
             <div class="modal-body">
-                <p>¿Seguro que deseas eliminar este Empleado?</p>
-                <input type="hidden" id="deleteId" />
+                <p id="deleteMessage"></p>
+                <input type="hidden" id="DeleteID">
             </div>
 
+            <!-- Footer -->
             <div class="modal-footer">
-                <button type="button" id="btnConfirmDelete" class="btn btn-danger">Eliminar</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger rounded-pill" id="btnConfirmDelete">Eliminar</button>
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
             </div>
         </div>
     </div>
 </div>
 
 
-@section Scripts {
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
+@section scripts{
+
+    <script src="https://jquery.com"></script>
+
+    <!-- Barra de busqueda -->
     <script>
-         $(document).ready(function () {
+        const container = document.querySelector(".row.g-4");
+        const originalCards = Array.from(container.children); // guardamos el orden original
 
-             $('#Empleados').DataTable({
-                 pageLength: 10,
-                 order: [],
-                 responsive: true,
-                 autoWidth: false,
-                 language: {
-                     url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
-                 }
-             });
+        document.getElementById("searchInput").addEventListener("keyup", function () {
+            var filter = this.value.toLowerCase();
+            var cards = Array.from(container.querySelectorAll(".col-12, .col-sm-6, .col-md-4, .col-lg-3"));
 
-         });
+            if (filter.trim() !== "") {
+                // Filtrar las que coinciden
+                var matching = cards.filter(card => card.innerText.toLowerCase().includes(filter));
+
+                // Ocultar las que no coinciden
+                cards.forEach(card => {
+                    if (!matching.includes(card)) {
+                        card.style.display = "none";
+                    } else {
+                        card.style.display = "";
+                    }
+                });
+
+                // Mover las coincidentes al inicio
+                matching.forEach(card => {
+                    container.insertBefore(card, container.firstChild);
+                });
+            } else {
+                // Restaurar todas las cards y su orden original
+                container.innerHTML = "";
+                originalCards.forEach(card => {
+                    card.style.display = "";
+                    container.appendChild(card);
+                });
+            }
+        });
 
     </script>
 
+    <!-- Boton desplegable de tuerca -->
     <script>
-        function setDeleteId(id) {
-            document.getElementById("deleteId").value = id;
-        }
+        document.addEventListener("click", function (e) {
+            const btn = e.target.closest(".settings-btn");
+            const menus = document.querySelectorAll(".settings-menu");
 
-        document.getElementById("btnConfirmDelete").addEventListener("click", function () {
-            var id = document.getElementById("deleteId").value;
+            if (btn) {
+                const menu = btn.parentElement.querySelector(".settings-menu");
 
-            $.ajax({
-                url: '/Empleados/Delete/' + id,
-                type: 'POST',
-                success: function () {
-
-                    $('#deleteConfirmModal').modal('hide');
-
-                    location.reload();
-                },
-                error: function () {
-                    alert("Error al eliminar el Empleado.");
+                // Si el menú ya está visible, lo cerramos
+                if (menu.style.display === "block") {
+                    menu.style.display = "none";
+                } else {
+                    // Cerramos todos los demás menús
+                    menus.forEach(m => m.style.display = "none");
+                    // Abrimos el menú del engrane clicado
+                    menu.style.display = "block";
                 }
-            });
+
+                e.stopPropagation();
+            } else {
+                // Cerrar todos los menús si se hace clic fuera
+                menus.forEach(m => m.style.display = "none");
+            }
         });
     </script>
+
+    <!-- Modal para editar usuario -->
+    <script>
+        $(document).ready(function () {
+            
+            // Evento clic en el enlace "Editar"
+            $('.edit-user').on('click', function (e) {
+                e.preventDefault(); // Evita que la página intente navegar al '#'
+                
+                var empleadoId = $(this).data('id'); // Obtiene el ID asignado en data-id
+
+                // Petición AJAX en segundo plano
+                $.ajax({
+                    url: '/Empleados/ObtenerEmpleado',
+                    type: 'GET',
+                    data: { id: empleadoId },
+                    success: function (data) {
+                        // Rellenamos los campos del formulario modal con los datos recibidos (notación camelCase de JSON)
+                        $('#edit_ID').val(data.id);
+                        $('#edit_Nombre').val(data.nombreEmpleado);
+                        $('#edit_Numero').val(data.numeroEmpleado);
+                        $('#edit_AreaID').val(data.areaID);
+                        $('#edit_SupervisorID').val(data.supervisorID ?? 0);
+                        $('#edit_TurnoID').val(data.turnoID);
+                        $('#edit_Activo').val(data.activo);
+
+                        // Mostramos el modal de edición usando la API nativa de Bootstrap 5
+                        var editModal = new bootstrap.Modal(document.getElementById('ModalEditarUsuario'));
+                        editModal.show();
+                    },
+                    error: function () {
+                        alert('Error al intentar recuperar la información del empleado.');
+                    }
+                });
+            });
+
+        });
+    </script>
+
+    <!-- Modal para eliminar usuario -->
+    <script>
+        $(document).ready(function () {
+
+            // 1. Al hacer clic en "Eliminar" en el menú flotante de la tarjeta
+            $('.delete-user').on('click', function (e) {
+                e.preventDefault();
+
+                var empleadoId = $(this).data('id');
+                var empleadoNombre = $(this).data('nombre');
+
+                // Insertamos los valores en las etiquetas específicas de TU modal
+                $('#DeleteID').val(empleadoId);
+                $('#deleteMessage').html('¿Estás seguro de que deseas eliminar a <strong>' + empleadoNombre + '</strong>?');
+
+                // Abrimos tu modal manualmente
+                var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarEmpleado'));
+                deleteModal.show();
+            });
+
+            // 2. Al hacer clic en el botón "Eliminar" interno de TU modal (#btnConfirmDelete)
+            $('#btnConfirmDelete').on('click', function () {
+                var idEmpleado = $('#DeleteID').val();
+
+                // Enviamos la baja mediante AJAX POST hacia el controlador
+                $.ajax({
+                    url: '/Empleados/Eliminar',
+                    type: 'POST',
+                    data: { id: idEmpleado },
+                    success: function () {
+                        // Si el servidor responde Ok, refrescamos la página para actualizar el listado de tarjetas
+                        window.location.reload();
+                    },
+                    error: function () {
+                        alert('Ocurrió un error al intentar eliminar el registro.');
+                    }
+                });
+            });
+
+        });
+
+    </script>
+
 }

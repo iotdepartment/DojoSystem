@@ -3,6 +3,6 @@
     public class Areas
     {
         public int ID { get; set; }
-        public string? Area { get; set; }                   
+        public string? Nombre { get; set; }
     }
 }

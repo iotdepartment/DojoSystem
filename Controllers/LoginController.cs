@@ -1,75 +1,82 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using TrainingsDashboard.Models;
-using System.Linq;
+using TrainingsDashboard.Models; // Asegúrate de importar el namespace de tus modelos
 
-namespace TrainingsDashboard.Controllers
+namespace ITSystem.Controllers
 {
     public class LoginController : Controller
     {
-        private readonly AppDbContext _context;
-        private readonly PasswordHasher<Users> _hasher;
+        private readonly AppDbContext _context; // Reemplaza por el nombre real de tu DbContext
 
         public LoginController(AppDbContext context)
         {
             _context = context;
-            _hasher = new PasswordHasher<Users>();
         }
+
+        // Vista de Login (Muestra el formulario)
+        [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
 
+        // Acción que procesa el formulario mediante AJAX
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Index(string UserName, string password)
+        public async Task<IActionResult> Login([FromForm] int NumeroEmpleado, [FromForm] string Password)
         {
-            var user = _context.Users.FirstOrDefault(u => u.UserName == UserName);
-
-            if (user != null)
+            // 1. Validar campos vacíos
+            if (NumeroEmpleado <= 0 || string.IsNullOrWhiteSpace(Password))
             {
-                var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
-
-                if (result == PasswordVerificationResult.Success)
-                {
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, user.UserName),
-                        new Claim(ClaimTypes.Email, user.Email ?? ""),
-                        new Claim(ClaimTypes.Role, user.Role ?? "Guest")
-                    };
-
-                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                    var authProperties = new AuthenticationProperties
-                    {
-                        IsPersistent = true
-                    };
-
-                    await HttpContext.SignInAsync(
-                        CookieAuthenticationDefaults.AuthenticationScheme,
-                        new ClaimsPrincipal(claimsIdentity),
-                        authProperties);
-
-                    return RedirectToAction("Index", "Home");
-                }
+                return Json(new { success = false, message = "Por favor, complete todos los campos." });
             }
 
-            // Si falla la autenticación
-            TempData["Error"] = "User or incorrect password.";
-            return View();
+            try
+            {
+                // 2. Buscar al usuario por Número de Empleado
+                var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.NumeroEmpleado == NumeroEmpleado);
+
+                if (usuario == null)
+                {
+                    return Json(new { success = false, message = "El número de empleado o la contraseña son incorrectos." });
+                }
+
+                // 3. Validar si tiene contraseña en la BD
+                if (string.IsNullOrEmpty(usuario.PasswordHash))
+                {
+                    return Json(new { success = false, message = "El usuario no tiene una contraseña configurada." });
+                }
+
+                // 4. Verificar Hash con BCrypt
+                bool passwordValido = BCrypt.Net.BCrypt.Verify(Password, usuario.PasswordHash);
+
+                if (!passwordValido)
+                {
+                    return Json(new { success = false, message = "El número de empleado o la contraseña son incorrectos." });
+                }
+
+                // 5. Crear variables de sesión
+                HttpContext.Session.SetInt32("UsuarioID", usuario.ID);
+                HttpContext.Session.SetString("UsuarioNombre", usuario.Nombre ?? "Usuario");
+                HttpContext.Session.SetString("UsuarioRol", usuario.Rol ?? "Solicitante");
+
+                // Forzamos la extracción del valor entero real usando .Value o un valor por defecto
+                HttpContext.Session.SetInt32("UsuarioEmpleado", usuario.NumeroEmpleado.HasValue ? usuario.NumeroEmpleado.Value : 0);
+
+                return Json(new { success = true });
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Error interno: " + ex.Message });
+            }
         }
 
         [HttpGet]
-        public async Task<IActionResult> Logout()
+        public IActionResult Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-            // Redirige explícitamente al login
-            return RedirectToAction("Index", "Login");
+            HttpContext.Session.Clear(); // Borra todas las variables de sesión
+            return RedirectToAction("Index", "Login"); // Redirecciona de vuelta al formulario
         }
+
     }
 }

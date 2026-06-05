@@ -1,27 +1,27 @@
-﻿@model IEnumerable<TrainingsDashboard.Models.EntrenadorViewModel>
+﻿@model IEnumerable<TrainingsDashboard.Models.SupervisorViewModel>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <div class="container-fluid">
     <div class="card rounded rounded-3 title-glass p-3">
         <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
-            <h2 class="m-0 text-start fw-bold"> Gestión de Entrenadores</h2>
+            <h2 class="m-0 text-start fw-bold">Gestión de supervisores</h2>
         </div>
 
         <div class="row mb-4 align-items-center">
             <div class="col-auto">
-                <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevoEntrenador">
-                    <i class="fas fa-user-plus"></i> Nuevo Entrenador
+                <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevoSupervisor">
+                    <i class="fas fa-user-plus"></i> Nuevo Supervisor
                 </button>
             </div>
             <div class="col">
-                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar Entrenador...">
+                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar Supervisor...">
             </div>
         </div>
-        <div class="row g-4 align-content-center" id="entrenadoresContainer">
+        <div class="row g-4 align-content-center" id="supervisoresContainer">
             @foreach (var s in Model)
             {
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3 entrenador-card">
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 supervisor-card">
                     <div class="card card-area shadow-sm p-3 text-center position-relative">
 
                         <!-- Botón de engrane -->
@@ -31,7 +31,7 @@
 
                         <!-- Menú flotante -->
                         <div class="settings-menu">
-                            <a href="#" class="delete-entrenador text-danger" data-id="@s.EntrenadorID" data-nombre="@s.NombreEmpleado">
+                            <a href="#" class="delete-supervisor text-danger" data-id="@s.SupervisorID" data-nombre="@s.NombreEmpleado">
                                 <i class="fas fa-trash"></i> Quitar Cargo
                             </a>
                         </div>
@@ -44,7 +44,7 @@
                             <p class="card-text mb-1"><strong>Área:</strong> @s.AreaNombre</p>
                             <p class="card-text mb-1"><strong>Turno:</strong> @s.TurnoNombre</p>
                             <p class="card-text mb-2"><strong>Supervisor:</strong> @s.SupervisorNombre</p>
-                            <span class="badge bg-primary rounded-pill">Entrenador Activo</span>
+                            <span class="badge bg-primary rounded-pill">Supervisor Activo</span>
                         </div>
                     </div>
                 </div>
@@ -53,31 +53,34 @@
     </div>
 </div>
 
-<!-- MODAL: ASIGNAR NUEVO ENTRENADOR -->
-<div class="modal fade" id="ModalNuevoEntrenador" tabindex="-1" aria-labelledby="ModalNuevoEntrenadorLabel" aria-hidden="true">
+<!-- MODAL: ASIGNAR NUEVO SUPERVISOR -->
+<div class="modal fade" id="ModalNuevoSupervisor" tabindex="-1" aria-labelledby="ModalNuevoSupervisorLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-primary text-white rounded-top-4 p-3">
-                <h5 class="modal-title fw-bold" id="ModalNuevoEntrenadorLabel">
-                    <i class="fas fa-user-plus me-2"></i>Asignar Nuevo Entrenador
+                <h5 class="modal-title fw-bold" id="ModalNuevoSupervisorLabel">
+                    <i class="fas fa-user-plus me-2"></i>Asignar Nuevo Supervisor
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form asp-action="Crear" asp-controller="Entrenadores" method="post">
+            <form asp-action="Crear" asp-controller="Supervisores" method="post">
+                <!-- Token de seguridad de ASP.NET Core -->
                 @Html.AntiForgeryToken()
+
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Selecciona el Empleado</label>
+                        <!-- El Tag Helper asp-items lee la lista de personal disponible enviada desde el controlador -->
                         <select name="EmpleadoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEmpleadosDisponibles" required>
                             <option value="" selected disabled>-- Elegir de la lista de personal --</option>
                         </select>
                         <div class="form-text text-muted mt-2">
-                            <i class="fas fa-info-circle me-1"></i> Solo aparecen empleados activos que no posean el rango de entrenador actualmente.
+                            <i class="fas fa-info-circle me-1"></i> Solo aparecen en la lista los empleados activos que no tienen un cargo de supervisor asignado actualmente.
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
-                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Promover a Entrenador</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Promover a Supervisor</button>
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
                 </div>
             </form>
@@ -86,11 +89,11 @@
 </div>
 
 <!-- MODAL: CONFIRMAR ELIMINACIÓN -->
-<div class="modal fade" id="ModalEliminarEntrenador" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="ModalEliminarSupervisor" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-danger text-white rounded-top-4 p-3">
-                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Quitar Cargo de Entrenador</h5>
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Quitar cargo de Supervisor</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
@@ -104,6 +107,7 @@
         </div>
     </div>
 </div>
+
 
 @section Scripts {
     <script src="https://jquery.com"></script>
@@ -173,33 +177,33 @@
         });
     </script>
 
-    <!-- Modal para eliminar entrenador -->
+    <!-- Modal para eliminar supervisor -->
     <script>
         $(document).ready(function () {
-            $('.delete-entrenador').on('click', function (e) {
+            $('.delete-supervisor').on('click', function (e) {
                 e.preventDefault();
                 var id = $(this).data('id');
                 var nombre = $(this).data('nombre');
 
                 $('#DeleteID').val(id);
-                $('#deleteMessage').html('¿Estás seguro de que deseas quitar el cargo de entrenador a: <strong class="text-danger">' + nombre + '</strong>?');
+                $('#deleteMessage').html('¿Estás seguro de que deseas quitar el cargo de supervisor a: <strong class="text-danger">' + nombre + '</strong>?');
 
-                var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarEntrenador'));
+                var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarSupervisor'));
                 deleteModal.show();
             });
 
             $('#btnConfirmDelete').on('click', function () {
-                var entId = $('#DeleteID').val();
+                var supId = $('#DeleteID').val();
 
                 $.ajax({
-                    url: '/Entrenadores/Eliminar',
+                    url: '/Supervisores/Eliminar',
                     type: 'POST',
-                    data: { id: entId },
+                    data: { id: supId },
                     success: function () {
                         window.location.reload();
                     },
                     error: function () {
-                        alert('Error al intentar revocar el rango del entrenador.');
+                        alert('Error al intentar revocar el rango del supervisor.');
                     }
                 });
             });

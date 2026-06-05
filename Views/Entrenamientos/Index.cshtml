@@ -1,0 +1,316 @@
+﻿@model IEnumerable<TrainingsDashboard.Models.Entrenamientos>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<div class="container-fluid">
+    <div class="card rounded rounded-3 title-glass p-3">
+        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
+            <h2 class="m-0 text-start fw-bold">Gestión de Entrenamientos</h2>
+        </div>
+
+        <div class="row mb-4 align-items-center">
+            <div class="col-auto">
+                <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevoEntrenamiento">
+                    <i class="fas fa-chalkboard-teacher"></i> Nuevo Entrenamiento
+                </button>
+            </div>
+            <div class="col">
+                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar entrenamiento...">
+            </div>
+        </div>
+
+        <div class="row g-4 align-content-center" id="entrenamientosContainer">
+            @foreach (var e in Model)
+            {
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 entrenamiento-card">
+                    <div class="card card-area shadow-sm p-3 text-center position-relative h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <!-- Botón de engrane -->
+                            <button class="settings-btn">
+                                <i class="fas fa-cog"></i>
+                            </button>
+
+                            <!-- Menu flotante -->
+                            <div class="settings-menu">
+                                <a href="#" class="edit-entrenamiento text-dark" data-id="@e.Id"><i class="fas fa-edit"></i> Editar Entrenamiento</a>
+                                <a href="#" class="delete-entrenamiento text-danger" data-id="@e.Id" data-nombre="@e.Nombre"><i class="fas fa-trash"></i> Eliminar Entrenamiento</a>
+                            </div>
+
+                            <div class="my-3 text-success">
+                                <i class="fas fa-book-reader fa-3x"></i>
+                            </div>
+
+                            <div class="card-body p-1">
+                                <h5 class="card-title fw-bold target-name mb-2">@e.Nombre</h5>
+                                <p class="card-text text-muted small mb-3 text-start">@e.Descripcion</p>
+                                <hr class="my-2">
+
+                                <p class="card-text mb-1 text-start">
+                                    <strong>Área:</strong>
+                                    <span class="target-area">
+                                        @{
+                                            var catAreas = ViewBag.ListaAreas as List<SelectListItem>;
+                                            // Agregamos ?.ToString() para que coincida con el Value del SelectListItem
+                                            var areaEncontrada = catAreas?.FirstOrDefault(a => a.Value == e.AreaID?.ToString());
+                                            @(areaEncontrada?.Text ?? "Sin Área Asignada")
+                                        }
+                                    </span>
+                                </p>
+
+                                <p class="card-text mb-1 text-start">
+                                    <strong>Imparte:</strong>
+                                    @{
+                                        var catEntrenadores = ViewBag.ListaEntrenadores as List<SelectListItem>;
+                                        // Agregamos ?.ToString() para que coincida con el Value del SelectListItem
+                                        var entrenadorEncontrado = catEntrenadores?.FirstOrDefault(ent => ent.Value == e.EntrenadorID?.ToString());
+                                        @(entrenadorEncontrado?.Text ?? "Sin Entrenador")
+                                    }
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <span class="badge bg-secondary rounded-pill w-100 p-2">
+                                <i class="fas fa-users me-1"></i> Cupo Máx: @(e.Limite?.ToString() ?? "Sin Límite") Team members
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CREAR NUEVO ENTRENAMIENTO -->
+<div class="modal fade" id="ModalNuevoEntrenamiento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-primary text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-folder-plus me-2"></i>Registrar Nuevo Entrenamiento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Crear" asp-controller="Entrenamientos" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre del Entrenamiento</label>
+                        <input type="text" name="Nombre" class="form-control rounded-pill" placeholder="Ej. Calidad Automotriz" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Descripción breve</label>
+                        <textarea name="Descripcion" class="form-control rounded-3" rows="3" placeholder="Objetivos del curso..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Área Correspondiente</label>
+                        <select name="AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
+                            <option value="" selected disabled>-- Selecciona el Área --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Entrenador Asignado</label>
+                        <select name="EntrenadorID" class="form-select rounded-pill" asp-items="ViewBag.ListaEntrenadores" required>
+                            <option value="" selected disabled>-- Selecciona al Instructor --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Límite de Participantes</label>
+                        <input type="number" name="Limite" class="form-control rounded-pill" min="1" placeholder="Ej. 25" required />
+                        <div class="form-text text-muted">Indica el número máximo de empleados permitidos en este grupo.</div>
+                    </div>
+
+
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Guardar Entrenamiento</button>
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR ENTRENAMIENTO -->
+<div class="modal fade" id="ModalEditarEntrenamiento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-warning text-dark rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-edit me-2"></i>Editar Entrenamiento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Editar" asp-controller="Entrenamientos" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+                    <!-- ID Oculto indispensable para guardar la actualización -->
+                    <input type="hidden" name="Id" id="edit_Id" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre del Entrenamiento</label>
+                        <input type="text" name="Nombre" id="edit_Nombre" class="form-control rounded-pill" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Descripción breve</label>
+                        <textarea name="Descripcion" id="edit_Descripcion" class="form-control rounded-3" rows="3" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Área Correspondiente</label>
+                        <select name="AreaID" id="edit_AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
+                            <option value="">-- Selecciona el Área --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Entrenador Asignado</label>
+                        <select name="EntrenadorID" id="edit_EntrenadorID" class="form-select rounded-pill" asp-items="ViewBag.ListaEntrenadores" required>
+                            <option value="">-- Selecciona al Instructor --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Límite de Participantes</label>
+                        <input type="number" name="Limite" id="edit_Limite" class="form-control rounded-pill" min="1" required />
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold">Guardar Cambios</button>
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL: CONFIRMAR ELIMINACIÓN -->
+<div class="modal fade" id="ModalEliminarEntrenamiento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-danger text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Eliminar Entrenamiento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p id="deleteMessage" class="fs-5 mb-1"></p>
+                <input type="hidden" id="DeleteID">
+            </div>
+            <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" id="btnConfirmDelete">Eliminar Entrenamiento</button>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://jquery.com"></script>
+    <script>
+        $(document).ready(function () {
+            initBuscador();
+            initMenuFlotante();
+            initModuloEliminar();
+            initModuloEditar(); // NUEVO: Inicializador del módulo de edición
+        });
+
+        function initBuscador() {
+            $("#searchInput").on("keyup", function () {
+                var value = $(this).val().toLowerCase();
+                $(".entrenamiento-card").filter(function () {
+                    var textName = $(this).find(".target-name").text().toLowerCase();
+                    var textArea = $(this).find(".target-area").text().toLowerCase();
+                    $(this).toggle(textName.indexOf(value) > -1 || textArea.indexOf(value) > -1);
+                });
+            });
+        }
+
+        function initMenuFlotante() {
+            $(document).on('click', '.settings-btn', function (e) {
+                e.stopPropagation();
+                $('.settings-menu').not($(this).next()).hide();
+                $(this).next().toggle();
+            });
+
+            $(document).on('click', function () {
+                $('.settings-menu').hide();
+            });
+        }
+
+        // ==========================================
+        // NUEVO: MÓDULO DE EDICIÓN (SEPARADO)
+        // ==========================================
+        function initModuloEditar() {
+            $('.edit-entrenamiento').on('click', function (e) {
+                e.preventDefault();
+                var entrenamientoId = $(this).data('id');
+
+                $.ajax({
+                    url: '/Entrenamientos/ObtenerEntrenamiento',
+                    type: 'GET',
+                    data: { id: entrenamientoId },
+                    success: function (data) {
+                        // Rellenar el formulario modal con las propiedades del JSON (camelCase automático de .NET)
+                        $('#edit_Id').val(data.id);
+                        $('#edit_Nombre').val(data.nombre);
+                        $('#edit_Descripcion').val(data.descripcion);
+                        $('#edit_AreaID').val(data.areaID);
+                        $('#edit_EntrenadorID').val(data.entrenadorID);
+                        $('#edit_Limite').val(data.limite);
+
+                        // Mostrar el modal
+                        var editModal = new bootstrap.Modal(document.getElementById('ModalEditarEntrenamiento'));
+                        editModal.show();
+                    },
+                    error: function () {
+                        alert('Error al intentar recuperar la información del entrenamiento.');
+                    }
+                });
+            });
+        }
+
+        function initModuloEliminar() {
+            $('.delete-entrenamiento').on('click', preparacionEliminar);
+            $('#btnConfirmDelete').on('click', ejecutarEliminar);
+        }
+
+        function preparacionEliminar(e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            var nombre = $(this).data('nombre');
+
+            $('#DeleteID').val(id);
+            $('#deleteMessage').html('¿Estás seguro de que deseas eliminar el entrenamiento: <strong class="text-danger">' + nombre + '</strong>?');
+
+            var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarEntrenamiento'));
+            deleteModal.show();
+        }
+
+        function ejecutarEliminar() {
+            var entId = $('#DeleteID').val();
+            var $btn = $(this);
+            $btn.prop('disabled', true).text('Procesando...');
+
+            $.ajax({
+                url: '/Entrenamientos/Eliminar',
+                type: 'POST',
+                data: { id: entId },
+                success: function () {
+                    window.location.reload();
+                },
+                error: function () {
+                    alert('Error al intentar eliminar el entrenamiento.');
+                    $btn.prop('disabled', false).text('Eliminar Entrenamiento');
+                }
+            });
+        }
+    </script>
+}
