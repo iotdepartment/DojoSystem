@@ -1,6 +1,6 @@
 ﻿@model IEnumerable<TrainingsDashboard.Models.EntrenamientosProgramados>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="https://cloudflare.com">
 
 <div class="container-fluid">
     <div class="card rounded rounded-3 title-glass p-3">
@@ -15,63 +15,126 @@
                 </button>
             </div>
             <div class="col">
-                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar por empleado o entrenamiento...">
+                <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar por entrenamiento...">
             </div>
         </div>
 
+        <!-- SECCIÓN DE ALERTAS CON AUTOCIERRE -->
+        @if (TempData["MensajeExito"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-3 alert-autocierre" role="alert">
+                <i class="fas fa-check-circle me-2"></i> @TempData["MensajeExito"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["MensajeAdvertencia"] != null)
+        {
+            <div class="alert alert-warning alert-dismissible fade show rounded-3 shadow-sm mb-3 alert-autocierre" role="alert">
+                <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i> @TempData["MensajeAdvertencia"]</div>
+                @if (TempData["ListaRepetidos"] is List<string> repetidos)
+                {
+                    <ul class="mb-0 ps-3 small">
+                        @foreach (var emp in repetidos)
+                        {
+                            <li>@emp</li>
+                        }
+                    </ul>
+                }
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <!-- CONTENEDOR AGRUPADO -->
         <div class="row g-4 align-content-center" id="programacionContainer">
-            @foreach (var p in Model)
-            {
-                // Recuperar nombres de los catálogos en memoria
-                var entrenamiento = (ViewBag.ListaEntrenamientos as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EntrenamientoID?.ToString())?.Text ?? "Sin Curso";
-                var empleado = (ViewBag.ListaEmpleados as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EmpleadoID?.ToString())?.Text ?? "Sin Empleado";
-                var area = (ViewBag.ListaAreas as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.AreaID?.ToString())?.Text ?? "Sin Área";
-                var turno = (ViewBag.ListaTurnos as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.TurnoID?.ToString())?.Text ?? "Sin Turno";
-                var supervisor = (ViewBag.ListaSupervisores as List<SelectListItem>)?.FirstOrDefault(x => x.Value == (p.SupervisorID ?? 0).ToString())?.Text ?? "NA";
+            @{
+                var gruposProgramados = Model
+                .GroupBy(p => new { p.EntrenamientoID, Fecha = p.FechaProgramacion?.Date })
+                .OrderByDescending(g => g.Key.Fecha);
 
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3 programacion-card">
+                var listaCursosCompleta = ViewBag.EntrenamientosCompletos as List<TrainingsDashboard.Models.Entrenamientos> ?? new List<TrainingsDashboard.Models.Entrenamientos>();
+            }
+
+            @foreach (var grupo in gruposProgramados)
+            {
+                var infoCurso = listaCursosCompleta.FirstOrDefault(x => x.Id == grupo.Key.EntrenamientoID);
+                var entrenamientoNombre = infoCurso?.Nombre ?? "Sin Curso";
+                var entrenamientoDesc = infoCurso?.Descripcion ?? "Sin descripción disponible.";
+                var fechaFormateada = grupo.Key.Fecha?.ToString("dd/MM/yyyy") ?? "-";
+
+                var totalInscritos = grupo.Count();
+                var limiteCurso = infoCurso?.Limite ?? 0;
+                int estatusGrupo = grupo.First().Status ?? 1;
+
+                var cupoClase = infoCurso?.Limite.HasValue == true && totalInscritos >= infoCurso.Limite.Value && infoCurso.Limite.Value > 0
+                ? "text-danger fw-bold"
+                : "text-success";
+
+                // Serializamos los empleados de este grupo a un atributo JSON para cargarlos en el modal sin ir al servidor
+                var listaEmpleadosJson = System.Text.Json.JsonSerializer.Serialize(grupo.Select(p => new
+                {
+                    empleado = (ViewBag.ListaEmpleados as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EmpleadoID?.ToString())?.Text ?? "Sin Empleado",
+                    area = (ViewBag.ListaAreas as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.AreaID?.ToString())?.Text ?? "S/A",
+                    asistio = p.FechaAsistencia.HasValue
+                }));
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3 programacion-card" data-search-course="@entrenamientoNombre.ToLower()">
                     <div class="card card-area shadow-sm p-3 text-center position-relative h-100 d-flex flex-column justify-content-between">
                         <div>
-                            <!-- Botón de engrane -->
                             <button class="settings-btn">
                                 <i class="fas fa-cog"></i>
                             </button>
 
-                            <!-- Menú flotante -->
                             <div class="settings-menu">
-                                <a href="#" class="edit-programacion text-dark" data-id="@p.ID"><i class="fas fa-edit"></i> Editar / Estatus</a>
-                                <a href="#" class="delete-programacion text-danger" data-id="@p.ID" data-nombre="@entrenamiento"><i class="fas fa-trash"></i> Cancelar/Eliminar</a>
+                                @{
+                                    var idsGrupo = string.Join(",", grupo.Select(x => x.ID));
+                                }
+                                <a href="#" class="delete-programacion text-danger" data-id="@idsGrupo" data-nombre="@entrenamientoNombre (@fechaFormateada)">
+                                    <i class="fas fa-trash"></i> Eliminar Grupo
+                                </a>
                             </div>
 
                             <div class="my-2 text-primary">
-                                <i class="fas fa-calendar-check fa-2.5x"></i>
+                                <i class="fas fa-graduation-cap fa-2x"></i>
                             </div>
 
                             <div class="card-body p-1 text-start">
-                                <h6 class="fw-bold target-course text-center text-primary mb-2">@entrenamiento</h6>
-                                <p class="card-text mb-1 small"><strong>Empleado:</strong> <span class="target-emp">@empleado</span></p>
-                                <p class="card-text mb-1 small"><strong>Área:</strong> @area</p>
-                                <p class="card-text mb-1 small"><strong>Turno:</strong> @turno</p>
-                                <p class="card-text mb-1 small"><strong>Supervisor:</strong> @supervisor</p>
-                                <hr class="my-1">
-                                <p class="card-text mb-0 small text-muted"><strong>Prog:</strong> @(p.FechaProgramacion?.ToString("dd/MM/yyyy") ?? "-")</p>
-                                <p class="card-text mb-0 small text-muted"><strong>Asistió:</strong> @(p.FechaAsistencia?.ToString("dd/MM/yyyy") ?? "-")</p>
+                                <h6 class="fw-bold target-course text-center text-primary mb-1">@entrenamientoNombre</h6>
+                                <p class="text-dark extra-small text-center mb-2 text-truncate" title="@entrenamientoDesc" style="font-size: 0.75rem; font-style: italic;">
+                                    Descripcion: @entrenamientoDesc
+                                </p>
+
+                                <p class="text-dark small text-center mb-2 fw-bold py-1 rounded">
+                                    Fecha Programada: <i class="far fa-calendar-alt me-1"></i> @fechaFormateada
+                                </p>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3 px-2 py-1 rounded">
+                                    <span class="small fw-bold text-black">Cupo del Curso:</span>
+                                    <span class="small @cupoClase">
+                                        <i class="fas fa-users me-1"></i> @totalInscritos / @(infoCurso?.Limite?.ToString() ?? "0")
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mt-2">
-                            @if (p.Status == 1)
+                        <!-- Sección de acciones de la tarjeta -->
+                        <div>
+                            <!-- BOTÓN PARA ABRIR EL MODAL DE DETALLES DEL PERSONAL -->
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill w-100 mb-2 btn-ver-personal"
+                                    data-curso="@entrenamientoNombre"
+                                    data-fecha="@fechaFormateada"
+                                    data-empleados='@listaEmpleadosJson'>
+                                <i class="fas fa-users me-1"></i> Ver Personal Inscrito
+                            </button>
+
+                            @if (estatusGrupo == 1)
                             {
                                 <span class="badge bg-warning text-dark rounded-pill w-100 p-2">Programado</span>
                             }
-                            else if (p.Status == 2)
+                            else if (estatusGrupo == 2)
                             {
-
                                 <span class="badge bg-success rounded-pill w-100 p-2">Asistió</span>
                             }
                             else
                             {
-
                                 <span class="badge bg-danger rounded-pill w-100 p-2">Cancelado</span>
                             }
                         </div>
@@ -82,77 +145,169 @@
     </div>
 </div>
 
-<!-- MODAL: CREAR NUEVA PROGRAMACIÓN (ACTUALIZADO) -->
-<div class="modal fade" id="ModalNuevaProgramacion" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<!-- NUEVO MODAL: LISTA DE PERSONAL INSCRITO -->
+<div class="modal fade" id="ModalVerPersonal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header bg-success text-white rounded-top-4 p-3">
-                <h5 class="modal-title fw-bold"><i class="fas fa-calendar-plus me-2"></i>Nueva Programación</h5>
+            <div class="modal-header bg-dark text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold"><i class="fas fa-users me-2"></i>Personal Inscrito</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="Crear" asp-controller="EntrenamientosProgramados" method="post">
+            <div class="modal-body p-4">
+                <div class="mb-3 border-bottom pb-2">
+                    <h6 class="fw-bold text-primary m-0" id="modalPersonalCurso">Curso</h6>
+                    <small class="text-muted fw-bold" id="modalPersonalFecha"><i class="far fa-calendar-alt me-1"></i> Fecha</small>
+                </div>
+                <div id="modalContenedorLista" class="list-group list-group-flush">
+                    <!-- Los empleados se inyectarán aquí dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CONFIRMAR ELIMINACIÓN (CANCELACIÓN DE PROGRAMACIÓN GRUPAL) -->
+<div class="modal fade" id="ModalEliminarProgramacion" tabindex="-1" aria-labelledby="ModalEliminarProgramacionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+
+            <!-- Encabezado -->
+            <div class="modal-header bg-danger text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold" id="ModalEliminarProgramacionLabel">
+                    <i class="fas fa-calendar-times me-2"></i>Eliminar Programación Grupal
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Cuerpo del Modal -->
+            <div class="modal-body p-4">
+                <!-- ID Oculto que procesa el Script de jQuery (Ahora almacena un string de IDs) -->
+                <input type="hidden" id="DeleteID">
+
+                <!-- Mensaje Dinámico inyectado por JavaScript -->
+                <p id="deleteMessage" class="fs-5 mb-1 text-dark"></p>
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Esta acción eliminará a todos los empleados inscritos en este bloque.</small>
+            </div>
+
+            <!-- Pie del Modal / Botones de Acción -->
+            <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" id="btnConfirmDelete">Eliminar Grupo</button>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL: CREAR NUEVA PROGRAMACIÓN MÚLTIPLE (MULTI-ÁREA CON PREVIO AGRUPADO) -->
+<div class="modal fade" id="ModalNuevaProgramacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-primary text-white rounded-top-4 p-3">
+                <h5 class="modal-title fw-bold"><i class="fas fa-calendar-plus me-2"></i>Programación Grupal</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Crear" asp-controller="EntrenamientosProgramados" method="post" id="formProgramacionGrupal">
                 @Html.AntiForgeryToken()
                 <div class="modal-body p-4">
 
-                    <!-- Input oculto para guardar el SupervisorID recuperado dinámicamente -->
-                    <input type="hidden" name="SupervisorID" id="create_SupervisorID" value="0" />
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Entrenamiento / Curso</label>
-                        <select name="EntrenamientoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEntrenamientos" required>
-                            <option value="" selected disabled>-- Selecciona el Curso --</option>
-                        </select>
+                    <!-- FILA SUPERIOR: CURSO Y FECHA -->
+                    <div class="row mb-3">
+                        <div class="col-12 col-md-6 mb-3 mb-md-0">
+                            <label class="form-label fw-bold">Entrenamiento / Curso</label>
+                            <select name="EntrenamientoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEntrenamientos" required>
+                                <option value="" selected disabled>-- Selecciona el Curso --</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">Fecha de Programación</label>
+                            <input type="date" name="FechaProgramacion" class="form-control rounded-pill" required />
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Empleado</label>
-                        <!-- Se añade el id "create_EmpleadoID" para vincular el evento en JavaScript -->
-                        <select name="EmpleadoID" id="create_EmpleadoID" class="form-select rounded-pill" asp-items="ViewBag.ListaEmpleados" required>
-                            <option value="" selected disabled>-- Selecciona el Empleado --</option>
-                        </select>
-                    </div>
+                    <hr class="my-3">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Fecha de Programación</label>
-                        <!-- NUEVO: Ahora el usuario elige libremente qué día agendar -->
-                        <input type="date" name="FechaProgramacion" class="form-control rounded-pill" required />
-                    </div>
-
+                    <!-- SECCIÓN PRINCIPAL: DOS COLUMNAS -->
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Área</label>
-                            <select name="AreaID" class="form-select rounded-pill" asp-items="ViewBag.ListaAreas" required>
-                                <option value="" selected disabled>-- Área --</option>
-                            </select>
+                        <!-- COLUMNA IZQUIERDA: BUSCADOR Y CARGA -->
+                        <div class="col-12 col-md-6 border-end">
+                            <div class="mb-2">
+                                <label class="form-label fw-bold text-primary small uppercase"><i class="fas fa-search me-1"></i> 1. Cargar por Área</label>
+                                <select id="selectArea" class="form-select rounded-pill form-select-sm">
+                                    <option value="" selected>-- Selecciona un Área --</option>
+                                    @if (ViewBag.ListaAreas != null)
+                                    {
+                                        foreach (var area in ViewBag.ListaAreas)
+                                        {
+                                            <option value="@area.Value">@area.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
+                                <span class="small fw-bold text-muted">Disponibles en Pantalla</span>
+                                <div class="form-check" id="contenedorSeleccionarTodos" style="display: none;">
+                                    <input class="form-check-input" type="checkbox" id="chkSeleccionarTodos">
+                                    <label class="form-check-label small text-muted" for="chkSeleccionarTodos">Marcar Todos</label>
+                                </div>
+                            </div>
+
+                            <!-- Lista de selección original -->
+                            <div class="border rounded-3 p-2 bg-light" style="max-height: 220px; overflow-y: auto;">
+                                <div id="contenedorListaEmpleados" class="list-group list-group-flush">
+                                    <div class="text-muted small p-4 text-center" id="placeholderLista">
+                                        Selecciona un área arriba para traer su personal.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Turno</label>
-                            <select name="TurnoID" class="form-select rounded-pill" asp-items="ViewBag.ListaTurnos" required>
-                                <option value="" selected disabled>-- Turno --</option>
-                            </select>
+
+                        <!-- COLUMNA DERECHA: REVISIÓN VISUAL DE AGREGADOS Y AGRUPADOS -->
+                        <div class="col-12 col-md-6 mt-3 mt-md-0">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold text-success small uppercase mb-0">
+                                    <i class="fas fa-users-cog me-1"></i> 2. Grupo Final (<span id="contadorSeleccionados">0</span>)
+                                </label>
+                                <button type="button" id="btnLimpiarTodo" class="btn btn-link p-0 text-danger small text-decoration-none fw-bold" style="display:none; font-size: 0.8rem;">
+                                    <i class="fas fa-trash-alt"></i> Limpiar Todo
+                                </button>
+                            </div>
+
+                            <!-- CONTENEDOR DE LA LISTA RESUMEN AGRUPADA -->
+                            <div class="border rounded-3 p-3 bg-white" style="max-height: 260px; overflow-y: auto;" id="contenedorGrupoFinal">
+                                <div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">
+                                    Marca las casillas de la izquierda para armar el grupo aquí.
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Contenedor dinámico de inputs ocultos que viajarán a C# -->
+                    <div id="inputsOcultosEmpleados"></div>
 
                 </div>
                 <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Programar Grupo</button>
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Programar</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-
 @section Scripts {
     <script src="https://jquery.com"></script>
     <script>
-                $(document).ready(function () {
+        $(document).ready(function () {
             initBuscador();
             initMenuFlotante();
-            initModuloEditar();
             initModuloEliminar();
-            initSupervisorAutomatico(); // NUEVO: Inicializador de asignación en tiempo real
+            initSupervisorAutomatico();
+            initModuloScannerGrupal();
         });
 
         // ==========================================
@@ -210,83 +365,328 @@
             });
         }
 
-        // ==========================================
-        // 3. MÓDULO DE EDICIÓN (AJAX)
-        // ==========================================
-        function initModuloEditar() {
-            $('.edit-programacion').on('click', function (e) {
-                e.preventDefault();
-                var id = $(this).data('id');
-
-                $.ajax({
-                    url: '/EntrenamientosProgramados/ObtenerProgramacion',
-                    type: 'GET',
-                    data: { id: id },
-                    success: function (data) {
-                        // Inyectar datos planos mapeados del modelo
-                        $('#edit_ID').val(data.id);
-                        $('#edit_Status').val(data.status);
-                        $('#edit_EntrenamientoID').val(data.entrenamientoID);
-                        $('#edit_EmpleadoID').val(data.empleadoID);
-                        $('#edit_AreaID').val(data.areaID);
-                        $('#edit_SupervisorID').val(data.supervisorID ?? 0);
-                        $('#edit_TurnoID').val(data.turnoID);
-                        $('#edit_FechaProgramacion').val(data.fechaProgramacion);
-
-                        // Limpiar y formatear la fecha para el input de tipo 'date' (YYYY-MM-DD)
-                        if (data.fechaAsistencia) {
-                            $('#edit_FechaAsistencia').val(data.fechaAsistencia.substring(0, 10));
-                        } else {
-                            $('#edit_FechaAsistencia').val('');
-                        }
-
-                        // Desplegar modal de edición
-                        var editModal = new bootstrap.Modal(document.getElementById('ModalEditarProgramacion'));
-                        editModal.show();
-                    },
-                    error: function() {
-                        alert('Error al intentar recuperar la información de la programación.');
-                    }
-                });
-            });
-        }
-
-        // ==========================================
-        // 4. MÓDULO DE ELIMINACIÓN (AJAX)
-        // ==========================================
         function initModuloEliminar() {
-            $('.delete-programacion').on('click', function (e) {
+            // Evento al presionar el botón de eliminar de la tarjeta agrupada
+            $(document).on('click', '.delete-programacion', function (e) {
                 e.preventDefault();
-                var id = $(this).data('id');
-                var nombre = $(this).data('nombre');
+                var id = $(this).data('id'); // Recupera la cadena "12,13,14..."
+                var nombre = $(this).data('nombre'); // Recupera "NombreCurso (Fecha)"
 
                 $('#DeleteID').val(id);
-                $('#deleteMessage').html('¿Estás seguro de que deseas eliminar la programación de:<br><strong class="text-danger">' + nombre + '</strong>?');
+                $('#deleteMessage').html('¿Estás seguro de que deseas eliminar **todo el grupo programado** para el entrenamiento: <strong class="text-danger">' + nombre + '</strong>?');
 
                 var deleteModal = new bootstrap.Modal(document.getElementById('ModalEliminarProgramacion'));
                 deleteModal.show();
             });
 
+            // Confirmación final dentro del modal
             $('#btnConfirmDelete').on('click', function () {
-                var id = $('#DeleteID').val();
+                var idsString = $('#DeleteID').val(); // Captura la cadena de IDs
                 var $btn = $(this);
 
-                // Deshabilitar botón durante el proceso
-                $btn.prop('disabled', true).text('Procesando...');
+                $btn.prop('disabled', true).text('Eliminar de grupo...');
 
                 $.ajax({
-                    url: '/EntrenamientosProgramados/Eliminar',
+                    url: '/EntrenamientosProgramados/EliminarGrupo', // Apunta al nuevo método masivo
                     type: 'POST',
-                    data: { id: id },
+                    data: { idsString: idsString }, // Enviamos el string al servidor
                     success: function () {
                         window.location.reload();
                     },
                     error: function () {
-                        alert('Ocurrió un error al intentar eliminar el registro.');
-                        $btn.prop('disabled', false).text('Eliminar');
+                        alert('Ocurrió un error al intentar eliminar el grupo de registros.');
+                        $btn.prop('disabled', false).text('Eliminar Grupo');
                     }
                 });
             });
         }
+
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            const $selectArea = $('#selectArea');
+            const $contenedorLista = $('#contenedorListaEmpleados');
+            const $contenedorGrupoFinal = $('#contenedorGrupoFinal');
+            const $inputsOcultos = $('#inputsOcultosEmpleados');
+            const $contador = $('#contadorSeleccionados');
+            const $chkSeleccionarTodos = $('#chkSeleccionarTodos');
+            const $contenedorTodos = $('#contenedorSeleccionarTodos');
+            const $btnLimpiarTodo = $('#btnLimpiarTodo');
+
+            let idsCargadosEnPantalla = new Set();
+
+            // 1. Cargar empleados desde el servidor (Izquierda)
+            $selectArea.on('change', function () {
+                const areaId = $(this).val();
+                const areaNombre = $(this).find('option:selected').text();
+                if (!areaId) return;
+
+                $('#placeholderLista').remove();
+                $contenedorTodos.show();
+                $btnLimpiarTodo.show();
+
+                const $spinner = $('<div id="tempSpinner" class="text-center p-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Buscando...</div>');
+                $contenedorLista.append($spinner);
+
+                $.ajax({
+                    url: '/EntrenamientosProgramados/ObtenerPorArea',
+                    type: 'GET',
+                    data: { areaId: areaId },
+                    success: function (empleados) {
+                        $('#tempSpinner').remove();
+
+                        if (empleados.length === 0) {
+                            alert("No hay empleados activos en esta área.");
+                            evaluarEstadosVacios();
+                            return;
+                        }
+
+                        empleados.forEach(emp => {
+                            if (!idsCargadosEnPantalla.has(emp.id)) {
+                                idsCargadosEnPantalla.add(emp.id);
+
+                                const itemHtml = `
+                                    <label class="list-group-item d-flex align-items-center py-2 border-bottom" data-id="${emp.id}" id="item-disp-${emp.id}">
+                                        <input class="form-check-input me-3 chk-empleado" type="checkbox"
+                                               value="${emp.id}"
+                                               data-nombre="${emp.nombre}"
+                                               data-num="${emp.numeroEmpleado ?? 'S/N'}"
+                                               data-area-id="${emp.areaId ?? 0}"
+                                               data-area-nombre="${areaNombre}"
+                                               data-turno="${emp.turnoId ?? 0}">
+                                        <div class="small text-truncate">
+                                            <span class="fw-bold text-primary">#${emp.numeroEmpleado ?? 'S/N'}</span> - ${emp.nombre}
+                                        </div>
+                                    </label>
+                                `;
+                                $contenedorLista.append(itemHtml);
+                            }
+                        });
+
+                        $chkSeleccionarTodos.prop('checked', false);
+                        $selectArea.val("");
+                    },
+                    error: function () {
+                        $('#tempSpinner').remove();
+                        alert("Error de red.");
+                        evaluarEstadosVacios();
+                    }
+                });
+            });
+
+            // 2. Evento al marcar/desmarcar casillas (Traspaso dinámico a la derecha)
+            $contenedorLista.on('change', '.chk-empleado', function () {
+                const $chk = $(this);
+                const empId = $chk.val();
+                const empNombre = $chk.data('nombre');
+                const empNum = $chk.data('num');
+                const areaId = $chk.data('area-id');
+                const areaNombre = $chk.data('area-nombre');
+
+                $('#placeholderGrupoFinal').remove();
+
+                if ($chk.is(':checked')) {
+                    // --- AGREGAR A LA DERECHA AGRUPADO ---
+                    // Buscar si ya existe el contenedor visual para esa área
+                    let $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
+
+                    if ($bloqueArea.length === 0) {
+                        // Si no existe el área a la derecha, creamos su título y su lista interna
+                        const estructuraAreaHtml = `
+                            <div class="mb-3 bloque-area-final" id="grupo-area-${areaId}">
+                                <div class="fw-bold text-dark border-bottom pb-1 small mb-1 d-flex align-items-center">
+                                    <i class="fas fa-folder-open text-warning me-2"></i> ${areaNombre}
+                                </div>
+                                <div class="lista-interna-area ps-2"></div>
+                            </div>
+                        `;
+                        $contenedorGrupoFinal.append(estructuraAreaHtml);
+                        $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
+                    }
+
+                    // Inyectamos la etiqueta del empleado dentro de su área correspondiente
+                    const empleadoFinalHtml = `
+                        <div class="d-flex justify-content-between align-items-center mb-1 small text-muted badge-emp-final" id="final-emp-${empId}">
+                            <span class="text-truncate" style="max-width: 85%;">
+                                <span class="fw-bold text-secondary">#${empNum}</span> - ${empNombre}
+                            </span>
+                            <button type="button" class="btn-close p-0 btn-remover-emp" data-id="${empId}" style="font-size: 0.65rem; width: auto; height: auto;"></button>
+                        </div>
+                    `;
+                    $bloqueArea.find('.lista-interna-area').append(empleadoFinalHtml);
+
+                } else {
+                    // --- REMOVER DE LA DERECHA SI SE DESMARCA ---
+                    $contenedorGrupoFinal.find(`#final-emp-${empId}`).remove();
+                    limpiarBloquesAreasVacios();
+                }
+
+                // Sincronizar estado del "Marcar Todos"
+                const total = $('.chk-empleado').length;
+                const marcados = $('.chk-empleado:checked').length;
+                $chkSeleccionarTodos.prop('checked', total === marcados);
+
+                actualizarInputsYContador();
+            });
+
+            // 3. Botón "X" de remoción rápida desde la lista final (Derecha)
+            $contenedorGrupoFinal.on('click', '.btn-remover-emp', function () {
+                const empId = $(this).data('id');
+                // Desmarcar casilla de la izquierda (eso gatilla automáticamente la remoción visual)
+                $contenedorLista.find(`#item-disp-${empId} .chk-empleado`).prop('checked', false).trigger('change');
+            });
+
+            // 4. Marcar todos los de la izquierda
+            $chkSeleccionarTodos.on('change', function () {
+                const estado = $(this).is(':checked');
+                $('.chk-empleado').prop('checked', estado).trigger('change');
+            });
+
+            // 5. Botón Limpiar Todo
+            $btnLimpiarTodo.on('click', function () {
+                if (confirm("¿Vaciar por completo la selección actual?")) {
+                    $contenedorLista.empty();
+                    $contenedorGrupoFinal.empty();
+                    idsCargadosEnPantalla.clear();
+                    $contenedorTodos.hide();
+                    $btnLimpiarTodo.hide();
+                    $chkSeleccionarTodos.prop('checked', false);
+
+                    $contenedorLista.html('<div class="text-muted small p-4 text-center" id="placeholderLista">Selecciona un área arriba para traer su personal.</div>');
+                    $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
+
+                    actualizarInputsYContador();
+                }
+            });
+
+            // Rutina para borrar títulos de áreas que se quedaron sin empleados adentro
+            function limpiarBloquesAreasVacios() {
+                $('.bloque-area-final').each(function () {
+                    if ($(this).find('.badge-emp-final').length === 0) {
+                        $(this).remove();
+                    }
+                });
+                if ($('.badge-emp-final').length === 0 && $contenedorGrupoFinal.find('#placeholderGrupoFinal').length === 0) {
+                    $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
+                }
+            }
+
+            function evaluarEstadosVacios() {
+                if ($('.list-group-item').length === 0) {
+                    $btnLimpiarTodo.click();
+                }
+            }
+
+            // 6. Sincronizar inputs ocultos estructurados para C#
+            function actualizarInputsYContador() {
+                $inputsOcultos.empty();
+                const $seleccionados = $('.chk-empleado:checked');
+                $contador.text($seleccionados.length);
+
+                $seleccionados.each(function (index, elemento) {
+                    const empleadoId = $(elemento).val();
+                    const areaId = $(elemento).data('area-id');
+                    const turnoId = $(elemento).data('turno');
+
+                    const inputsHtml = `
+                        <input type="hidden" name="EmpleadosIds[${index}]" value="${empleadoId}" />
+                        <input type="hidden" name="AreasIds[${index}]" value="${areaId}" />
+                        <input type="hidden" name="TurnosIds[${index}]" value="${turnoId}" />
+                    `;
+                    $inputsOcultos.append(inputsHtml);
+                });
+            }
+        });
+
+    </script>
+    <script>
+        $(document).ready(function () {
+            // Buscar todas las alertas de éxito o advertencia en la página
+            const $alertasAutoCierre = $('.alert-success, .alert-warning');
+
+            if ($alertasAutoCierre.length > 0) {
+                // Configurar un temporizador de 10,000 milisegundos (10 segundos)
+                setTimeout(function () {
+                    $alertasAutoCierre.each(function () {
+                        // Instanciar el control nativo de alertas de Bootstrap 5
+                        const alertaBootstrap = bootstrap.Alert.getOrCreateInstance(this);
+                        if (alertaBootstrap) {
+                            alertaBootstrap.close(); // Cierra con la animación fade/show integrada
+                        }
+                    });
+                }, 10000);
+            }
+        });
+
+    </script>
+    <script>
+            $(document).ready(function () {
+            // 1. Temporizador de 10 segundos para cerrar alertas automáticamente
+            const $alertas = $('.alert-autocierre');
+            if ($alertas.length > 0) {
+                setTimeout(function () {
+                    $alertas.each(function () {
+                        const bAlert = bootstrap.Alert.getOrCreateInstance(this);
+                        if (bAlert) bAlert.close();
+                    });
+                }, 10000);
+            }
+
+            // 2. Buscador en tiempo real por Entrenamiento
+            $('#searchInput').on('keyup', function () {
+                const query = $(this).val().toLowerCase().trim();
+
+                $('.programacion-card').each(function () {
+                    const $card = $(this);
+                    const cursoTxt = $card.data('search-course') || '';
+
+                    if (cursoTxt.includes(query) || query === "") {
+                        $card.show();
+                    } else {
+                        $card.hide();
+                    }
+                });
+            });
+
+            // 3. EVENTO DINÁMICO: Cargar personal en el segundo modal
+            $(document).on('click', '.btn-ver-personal', function () {
+                const curso = $(this).data('curso');
+                const fecha = $(this).data('fecha');
+                const empleados = $(this).data('empleados'); // Trae el array serializado en JSON
+
+                // Asignar encabezados en el modal
+                $('#modalPersonalCurso').text(curso);
+                $('#modalPersonalFecha').html(`<i class="far fa-calendar-alt me-1"></i> ${fecha}`);
+
+                // Limpiar contenedor e inyectar filas
+                const $lista = $('#modalContenedorLista');
+                $lista.empty();
+
+                empleados.forEach(emp => {
+                    const estatusAsistencia = emp.asistio
+                        ? '<span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 small"><i class="fas fa-check"></i> Asistió</span>'
+                        : '<span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-2 py-1 small"><i class="far fa-clock"></i> Pendiente</span>';
+
+                    const filaHtml = `
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-bottom">
+                            <div class="text-truncate me-2" style="max-width: 70%;">
+                                <div class="fw-bold text-dark text-truncate small">${emp.empleado}</div>
+                                <small class="text-muted extra-small" style="font-size: 0.75rem;">Área: ${emp.area}</small>
+                            </div>
+                            <div>
+                                ${estatusAsistencia}
+                            </div>
+                        </div>
+                    `;
+                    $lista.append(filaHtml);
+                });
+
+                // Mostrar el modal manualmente
+                const modalPersonal = new bootstrap.Modal(document.getElementById('ModalVerPersonal'));
+                modalPersonal.show();
+            });
+        });
+
     </script>
 }

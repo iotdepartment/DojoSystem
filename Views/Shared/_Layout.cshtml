@@ -36,20 +36,31 @@
                     <!-- Estos botones solo se renderizan si el rol es Admin o Tecnico -->
                     @if (rolMenu == "Admin" || rolMenu == "Tecnico")
                     {
-                    <li class="nav-item ms-5"><a class="nav-link text-light" href="/EntrenamientosProgramados/Index">Entrenamientos Programados</a></li>
-                    <li class="nav-item ms-5"><a class="nav-link text-light" href="/Entrenamientos/Index">Entrenamientos</a></li>
-                        <li class="nav-item dropdown ms-5">
-                            <a class="nav-link dropdown-toggle text-light" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Personal
-                            </a>
+                    <li class="nav-item ms-5"><a class="nav-link text-light" href="/Pizarron/Index">Pizarron</a></li>
 
-                            <ul class="dropdown-menu shadow" aria-labelledby="adminDropdown">
-                                <li><a class="dropdown-item" href="/Empleados/Index">Empleados</a></li>
-                                <li><a class="dropdown-item" href="/Supervisores/Index">Supervisores</a></li>
-                                <li><a class="dropdown-item" href="/Entrenadores/Index">Entrenadores</a></li>
-                                <li><a class="dropdown-item" href="/Usuarios/Index">Usuarios</a></li>
-                            </ul>
-                        </li>
+                    <li class="nav-item dropdown ms-5">
+                        <a class="nav-link dropdown-toggle text-light" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Gestionar Entrenamientos
+                        </a>
+
+                        <ul class="dropdown-menu shadow" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="/Asistencia/Index">Asistencia</a></li>
+                            <li><a class="dropdown-item" href="/EntrenamientosProgramados/Index">Entrenamientos Programados</a></li>
+                            <li><a class="dropdown-item" href="/Entrenamientos/Index">Entrenamientos</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-5">
+                        <a class="nav-link dropdown-toggle text-light" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Personal
+                        </a>
+
+                        <ul class="dropdown-menu shadow" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="/Empleados/Index">Empleados</a></li>
+                            <li><a class="dropdown-item" href="/Supervisores/Index">Supervisores</a></li>
+                            <li><a class="dropdown-item" href="/Entrenadores/Index">Entrenadores</a></li>
+                            <li><a class="dropdown-item" href="/Usuarios/Index">Usuarios</a></li>
+                        </ul>
+                    </li>
 
                     <li class="nav-item dropdown ms-5">
                         <a class="nav-link dropdown-toggle text-light" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

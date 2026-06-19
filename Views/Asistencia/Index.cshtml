@@ -1,0 +1,280 @@
+﻿@model IEnumerable<TrainingsDashboard.Models.EntrenamientosProgramados>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<div class="container-fluid">
+    <div class="card rounded rounded-3 title-glass p-3">
+
+        <!-- Encabezado -->
+        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
+            <h2 class="m-0 text-start fw-bold">Paso de Lista y Asistencia</h2>
+        </div>
+
+        <!-- Filtro Selector de Curso y Fecha (Cascada) -->
+        <div class="row mb-4 align-items-center bg-light p-3 rounded-4 mx-1 border">
+            <div class="col-12">
+                <label class="form-label fw-bold text-secondary mb-2">
+                    <i class="fas fa-filter me-1"></i> Filtro de Búsqueda para Lista de Asistencia:
+                </label>
+                <form method="get" action="@Url.Action("Index", "Asistencia")" id="formFiltro" class="row g-3 align-items-end">
+
+                    <!-- Selector de Entrenamiento -->
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold text-muted">1. Curso:</label>
+                        <select name="entrenamientoId" id="selectEntrenamientoAsistencia" class="form-select rounded-pill shadow-sm" required>
+                            <option value="">-- Selecciona el Entrenamiento --</option>
+                            @foreach (var item in ViewBag.ListaEntrenamientos as List<SelectListItem>)
+                            {
+                                <!option value="@item.Value" @(item.Selected ? "selected" : "")>@item.Text</!option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Selector de Fechas (Dinámico) -->
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted">2. Fecha Programada:</label>
+                        <select name="fecha" id="selectFechaAsistencia" class="form-select rounded-pill shadow-sm" required>
+                            <option value="">-- Primero selecciona un curso --</option>
+                            @if (ViewBag.ListaFechasDisponibles != null)
+                            {
+                                foreach (var fecha in ViewBag.ListaFechasDisponibles as List<SelectListItem>)
+                                {
+                                    <!option value="@fecha.Value" @(fecha.Selected ? "selected" : "")>@fecha.Text</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Botón para Buscar/Cargar Lista -->
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary rounded-pill w-100 shadow-sm fw-bold">
+                            <i class="fas fa-search me-1"></i> Desplegar Lista
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+        <!-- Formulario de Envío de Asistencia Masiva -->
+        @if (Model != null && Model.Any())
+        {
+            <form asp-action="GuardarAsistenciaMasiva" asp-controller="Asistencia" method="post" id="formAsistencia">
+                @Html.AntiForgeryToken()
+
+                <!-- Inputs ocultos para recordar los filtros al procesar el POST -->
+                <input type="hidden" name="EntrenamientoFilterID" value="@ViewBag.EntrenamientoSeleccionado" />
+                <input type="hidden" name="FechaFilter" value="@ViewBag.FechaSeleccionada" />
+
+                <!-- Configuración de fecha de cierre -->
+                <div class="row mb-3 align-items-center px-2">
+                    <div class="col-auto">
+                        <label class="form-label fw-bold m-0">Fecha de Asistencia Real:</label>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" name="FechaAsistenciaReal" class="form-control rounded-pill form-control-sm shadow-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="col text-end">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" id="btnSeleccionarTodos">
+                            <i class="fas fa-check-double"></i> Seleccionar Todos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BUSCADOR / MARCADOR RÁPIDO POR NÚMERO DE EMPLEADO -->
+                <div class="row mb-3 px-2">
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <label class="form-label fw-bold text-primary small"><i class="fas fa-barcode me-1"></i> Marcado Rápido por Número de Empleado:</label>
+                        <div class="input-group shadow-sm rounded-pill">
+                            <span class="input-group-text bg-primary text-white border-0 rounded-start-pill"><i class="fas fa-user-check"></i></span>
+                            <input type="number" id="inputMarcadoRapido" class="form-control border-1 rounded-end-pill" placeholder="Escribe el número y presiona Enter..." autocomplete="off">
+                        </div>
+                        <div id="feedbackMarcado" class="form-text fw-bold mt-1 ps-2" style="display:none;"></div>
+                    </div>
+                </div>
+    
+
+                <!-- Tabla Interactiva de Alumnos -->
+                <div class="table-responsive bg-white rounded-4 shadow-sm border p-2">
+                    <table class="table table-hover align-middle m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;" class="text-center">Asistió</th>
+                                <th>Empleado</th>
+                                <th>Área</th>
+                                <th>Turno</th>
+                                <th>Fecha Programada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model)
+                            {
+                                var dicEmpleados = ViewBag.ListaEmpleados as Dictionary<int, string>;
+                                var dicAreas = ViewBag.ListaAreas as Dictionary<int, string>;
+                                var dicTurnos = ViewBag.ListaTurnos as Dictionary<int, string>;
+
+                                string nombreEmp = p.EmpleadoID.HasValue && dicEmpleados != null && dicEmpleados.ContainsKey(p.EmpleadoID.Value) ? dicEmpleados[p.EmpleadoID.Value] : "Sin Nombre";
+                                string nombreArea = p.AreaID.HasValue && dicAreas != null && dicAreas.ContainsKey(p.AreaID.Value) ? dicAreas[p.AreaID.Value] : "-";
+                                string nombreTurno = p.TurnoID.HasValue && dicTurnos != null && dicTurnos.ContainsKey(p.TurnoID.Value) ? dicTurnos[p.TurnoID.Value] : "-";
+
+                                // EXTRAER EL NÚMERO DE EMPLEADO DEL STRING "[1234] - Nombre"
+                                string numEmpleadoLimpio = "";
+                                if (nombreEmp.StartsWith("[") && nombreEmp.Contains("]"))
+                                {
+                                    numEmpleadoLimpio = nombreEmp.Substring(1, nombreEmp.IndexOf("]") - 1);
+                                }
+
+                                // Agregamos el atributo data-num-empleado a la fila para que JavaScript lo encuentre
+                                <tr class="fila-alumno" data-num-empleado="@numEmpleadoLimpio">
+                                    <td class="text-center">
+                                        <input type="checkbox" name="ProgramacionesIds" value="@p.ID" class="form-check-input chk-asistencia" style="transform: scale(1.3); cursor: pointer;" />
+                                    </td>
+                                    <td class="fw-bold text-dark">@nombreEmp</td>
+                                    <td><span class="badge bg-light text-dark border rounded-pill">@nombreArea</span></td>
+                                    <td>@nombreTurno</td>
+                                    <td class="text-muted small">@p.FechaProgramacion?.ToString("dd/MM/yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+
+                    </table>
+                </div>
+
+                <!-- Botón de Envío -->
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-success rounded-pill px-5 shadow-lg fw-bold fs-5">
+                        <i class="fas fa-save me-2"></i>Confirmar Asistencia Grupo
+                    </button>
+                </div>
+            </form>
+        }
+        else if (ViewBag.EntrenamientoSeleccionado != null)
+        {
+            <div class="text-center p-5 bg-white rounded-4 border shadow-sm">
+                <i class="fas fa-clipboard-check text-success fa-3x mb-3"></i>
+                <h4 class="fw-bold text-dark">¡Todo listo!</h4>
+                <p class="text-muted m-0">No quedan empleados pendientes por confirmar asistencia en los parámetros seleccionados.</p>
+            </div>
+        }
+        else
+        {
+            <div class="text-center p-5 text-muted">
+                <i class="fas fa-arrow-up fa-2x mb-2 d-block animate__animated animate__bounce animate__infinite"></i>
+                <p class="fs-5">Selecciona un entrenamiento y su respectiva fecha arriba para desplegar la lista de asistencia.</p>
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://jquery.com"></script>
+    <script>
+        $(document).ready(function () {
+            let todosSeleccionados = false;
+
+            const $selectEntrenamiento = $('#selectEntrenamientoAsistencia');
+            const $selectFecha = $('#selectFechaAsistencia');
+            const $btnSeleccionarTodos = $('#btnSeleccionarTodos');
+            const $formAsistencia = $('#formAsistencia');
+
+            // Nuevas referencias para el marcado rápido
+            const $inputMarcado = $('#inputMarcadoRapido');
+            const $feedback = $('#feedbackMarcado');
+
+            // 1. Escuchar cambios en el selector de Cursos para cargar Fechas vía AJAX
+            $selectEntrenamiento.on('change', function () {
+                const idCurso = $(this).val();
+                $selectFecha.empty().append('<option value="">-- Cargando fechas... --</option>');
+
+                if (!idCurso) {
+                    $selectFecha.empty().append('<option value="">-- Primero selecciona un curso --</option>');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Asistencia/ObtenerFechasPorEntrenamiento',
+                    type: 'GET',
+                    data: { entrenamientoId: idCurso },
+                    success: function (fechas) {
+                        $selectFecha.empty();
+                        if (fechas.length === 0) {
+                            $selectFecha.append('<option value="">No hay fechas con asistencia pendiente</option>');
+                            return;
+                        }
+                        $selectFecha.append('<option value="">-- Selecciona la Fecha --</option>');
+                        fechas.forEach(f => {
+                            $selectFecha.append(`<option value="${f.value}">${f.text}</option>`);
+                        });
+                    },
+                    error: function () {
+                        $selectFecha.empty().append('<option value="">Error al cargar fechas del servidor</option>');
+                    }
+                });
+            });
+
+            // 2. LÓGICA DE MARCADO RÁPIDO POR NÚMERO DE EMPLEADO (Presionar Enter)
+            $inputMarcado.on('keypress', function (e) {
+                if (e.which === 13) { // 13 es el código de la tecla Enter
+                    e.preventDefault(); // Evita que el formulario se envíe por error
+
+                    const numBuscado = $(this).val().trim();
+                    $feedback.hide().removeClass('text-success text-danger');
+
+                    if (!numBuscado) return;
+
+                    // Buscar la fila que coincida exactamente con el número de empleado
+                    const $filaObjetivo = $(`.fila-alumno[data-num-empleado="${numBuscado}"]`);
+
+                    if ($filaObjetivo.length > 0) {
+                        const $checkbox = $filaObjetivo.find('.chk-asistencia');
+
+                        if ($checkbox.is(':checked')) {
+                            // Si ya estaba marcado, avisamos al usuario
+                            $feedback.text(`El empleado #${numBuscado} ya estaba marcado.`).addClass('text-danger').fadeIn();
+                        } else {
+                            // Marcar el checkbox
+                            $checkbox.prop('checked', true);
+
+                            // Efecto visual: Resaltar la fila temporalmente en verde para confirmar el cambio
+                            $filaObjetivo.addClass('table-success');
+                            setTimeout(function () {
+                                $filaObjetivo.removeClass('table-success');
+                            }, 1500);
+
+                            $feedback.text(`Empleado #${numBuscado} marcado con éxito.`).addClass('text-success').fadeIn();
+                        }
+                    } else {
+                        // Si el número de empleado no pertenece a este grupo/fecha
+                        $feedback.text(`El empleado #${numBuscado} no se encuentra en esta lista de asistencia.`).addClass('text-danger').fadeIn();
+                    }
+
+                    // Limpiar el campo de texto para el siguiente escaneo/escritura
+                    $(this).val('');
+                }
+            });
+
+            // 3. Manejador del botón dinámico Seleccionar / Deseleccionar todos
+            $btnSeleccionarTodos.on("click", function () {
+                todosSeleccionados = !todosSeleccionados;
+                $(".chk-asistencia").prop("checked", todosSeleccionados);
+
+                if (todosSeleccionados) {
+                    $(this).removeClass("btn-outline-primary").addClass("btn-primary").html('<i class="fas fa-times"></i> Deseleccionar Todos');
+                } else {
+                    $(this).removeClass("btn-primary").addClass("btn-outline-primary").html('<i class="fas fa-check-double"></i> Seleccionar Todos');
+                }
+            });
+
+            // 4. Validar que al menos una casilla esté marcada antes de guardar
+            $formAsistencia.on("submit", function (e) {
+                const marcados = $(".chk-asistencia:checked").length;
+                if (marcados === 0) {
+                    e.preventDefault();
+                    alert("Debes seleccionar al menos a un empleado de la lista para confirmarle su asistencia.");
+                }
+            });
+        });
+    </script>
+}
+
