@@ -3,69 +3,68 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <div class="container-fluid">
-    <div class="card rounded rounded-3 title-glass p-3">
+    <!-- Encabezado -->
+    <div class="card mb-4 p-3 border card-glass">
+        <h2 class="m-0 text-start fw-bold">Paso de Lista y Asistencia</h2>
+    </div>
 
-        <!-- Encabezado -->
-        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
-            <h2 class="m-0 text-start fw-bold">Paso de Lista y Asistencia</h2>
-        </div>
+    <!-- Filtro Selector de Curso y Fecha (Cascada) -->
+    <div class="row mb-4 card-glass align-items-center p-3 mx-1 border">
+        <div class="col-12">
+            <label class="form-label fw-bold text-dark mb-2">
+                <i class="fas fa-filter me-1"></i> Filtro de Búsqueda para Lista de Asistencia:
+            </label>
+            <form method="get" action="@Url.Action("Index", "Asistencia")" id="formFiltro" class="row g-3 align-items-end">
 
-        <!-- Filtro Selector de Curso y Fecha (Cascada) -->
-        <div class="row mb-4 align-items-center bg-light p-3 rounded-4 mx-1 border">
-            <div class="col-12">
-                <label class="form-label fw-bold text-secondary mb-2">
-                    <i class="fas fa-filter me-1"></i> Filtro de Búsqueda para Lista de Asistencia:
-                </label>
-                <form method="get" action="@Url.Action("Index", "Asistencia")" id="formFiltro" class="row g-3 align-items-end">
+                <!-- Selector de Entrenamiento -->
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold text-dark">Curso:</label>
+                    <select name="entrenamientoId" id="selectEntrenamientoAsistencia" class="form-select rounded-pill shadow-sm" required>
+                        <option value="">-- Selecciona el Entrenamiento --</option>
+                        @foreach (var item in ViewBag.ListaEntrenamientos as List<SelectListItem>)
+                        {
+                            <!option value="@item.Value" @(item.Selected ? "selected" : "")>@item.Text</!option>
+                        }
+                    </select>
+                </div>
 
-                    <!-- Selector de Entrenamiento -->
-                    <div class="col-md-5">
-                        <label class="form-label small fw-bold text-muted">1. Curso:</label>
-                        <select name="entrenamientoId" id="selectEntrenamientoAsistencia" class="form-select rounded-pill shadow-sm" required>
-                            <option value="">-- Selecciona el Entrenamiento --</option>
-                            @foreach (var item in ViewBag.ListaEntrenamientos as List<SelectListItem>)
+                <!-- Selector de Fechas (Dinámico) -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-dark">Fecha Programada:</label>
+                    <select name="fecha" id="selectFechaAsistencia" class="form-select rounded-pill shadow-sm" required>
+                        <option value="">-- Primero selecciona un curso --</option>
+                        @if (ViewBag.ListaFechasDisponibles != null)
+                        {
+                            foreach (var fecha in ViewBag.ListaFechasDisponibles as List<SelectListItem>)
                             {
-                                <!option value="@item.Value" @(item.Selected ? "selected" : "")>@item.Text</!option>
+                                <!option value="@fecha.Value" @(fecha.Selected ? "selected" : "")>@fecha.Text</!option>
                             }
-                        </select>
-                    </div>
+                        }
+                    </select>
+                </div>
 
-                    <!-- Selector de Fechas (Dinámico) -->
-                    <div class="col-md-4">
-                        <label class="form-label small fw-bold text-muted">2. Fecha Programada:</label>
-                        <select name="fecha" id="selectFechaAsistencia" class="form-select rounded-pill shadow-sm" required>
-                            <option value="">-- Primero selecciona un curso --</option>
-                            @if (ViewBag.ListaFechasDisponibles != null)
-                            {
-                                foreach (var fecha in ViewBag.ListaFechasDisponibles as List<SelectListItem>)
-                                {
-                                    <!option value="@fecha.Value" @(fecha.Selected ? "selected" : "")>@fecha.Text</!option>
-                                }
-                            }
-                        </select>
-                    </div>
+                <!-- Botón para Buscar/Cargar Lista -->
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary rounded-pill w-100 shadow-sm fw-bold">
+                        <i class="fas fa-search me-1"></i> Desplegar Lista
+                    </button>
+                </div>
 
-                    <!-- Botón para Buscar/Cargar Lista -->
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary rounded-pill w-100 shadow-sm fw-bold">
-                            <i class="fas fa-search me-1"></i> Desplegar Lista
-                        </button>
-                    </div>
-
-                </form>
-            </div>
+            </form>
         </div>
+    </div>
 
-        <!-- Formulario de Envío de Asistencia Masiva -->
-        @if (Model != null && Model.Any())
-        {
-            <form asp-action="GuardarAsistenciaMasiva" asp-controller="Asistencia" method="post" id="formAsistencia">
-                @Html.AntiForgeryToken()
+    <!-- Formulario de Envío de Asistencia Masiva -->
+    @if (Model != null && Model.Any())
+    {
+        <form asp-action="GuardarAsistenciaMasiva" asp-controller="Asistencia" method="post" id="formAsistencia">
+            @Html.AntiForgeryToken()
 
-                <!-- Inputs ocultos para recordar los filtros al procesar el POST -->
-                <input type="hidden" name="EntrenamientoFilterID" value="@ViewBag.EntrenamientoSeleccionado" />
-                <input type="hidden" name="FechaFilter" value="@ViewBag.FechaSeleccionada" />
+            <!-- Inputs ocultos para recordar los filtros al procesar el POST -->
+            <input type="hidden" name="EntrenamientoFilterID" value="@ViewBag.EntrenamientoSeleccionado" />
+            <input type="hidden" name="FechaFilter" value="@ViewBag.FechaSeleccionada" />
 
+            <div class="card-glass border mx-1 p-2 mb-2">
                 <!-- Configuración de fecha de cierre -->
                 <div class="row mb-3 align-items-center px-2">
                     <div class="col-auto">
@@ -92,12 +91,11 @@
                         <div id="feedbackMarcado" class="form-text fw-bold mt-1 ps-2" style="display:none;"></div>
                     </div>
                 </div>
-    
 
                 <!-- Tabla Interactiva de Alumnos -->
-                <div class="table-responsive bg-white rounded-4 shadow-sm border p-2">
+                <div class="table-responsive rounded-4 p-2">
                     <table class="table table-hover align-middle m-0">
-                        <thead class="table-light">
+                        <thead class="table">
                             <tr>
                                 <th style="width: 50px;" class="text-center">Asistió</th>
                                 <th>Empleado</th>
@@ -141,30 +139,30 @@
                 </div>
 
                 <!-- Botón de Envío -->
-                <div class="text-end mt-4">
+                <div class="text-end mt-5">
                     <button type="submit" class="btn btn-success rounded-pill px-5 shadow-lg fw-bold fs-5">
                         <i class="fas fa-save me-2"></i>Confirmar Asistencia Grupo
                     </button>
                 </div>
-            </form>
-        }
-        else if (ViewBag.EntrenamientoSeleccionado != null)
-        {
-            <div class="text-center p-5 bg-white rounded-4 border shadow-sm">
-                <i class="fas fa-clipboard-check text-success fa-3x mb-3"></i>
-                <h4 class="fw-bold text-dark">¡Todo listo!</h4>
-                <p class="text-muted m-0">No quedan empleados pendientes por confirmar asistencia en los parámetros seleccionados.</p>
-            </div>
-        }
-        else
-        {
-            <div class="text-center p-5 text-muted">
-                <i class="fas fa-arrow-up fa-2x mb-2 d-block animate__animated animate__bounce animate__infinite"></i>
-                <p class="fs-5">Selecciona un entrenamiento y su respectiva fecha arriba para desplegar la lista de asistencia.</p>
-            </div>
-        }
 
-    </div>
+            </div>
+        </form>
+    }
+    else if (ViewBag.EntrenamientoSeleccionado != null)
+    {
+        <div class="text-center p-5 rounded-4">
+            <i class="fas fa-clipboard-check text-success fa-3x mb-3"></i>
+            <h4 class="fw-bold text-dark">¡Todo listo!</h4>
+            <p class="text-dark m-0">No quedan empleados pendientes por confirmar asistencia en los parámetros seleccionados.</p>
+        </div>
+    }
+    else
+    {
+        <div class="text-center p-5 text-dark">
+            <i class="fas fa-arrow-up fa-2x mb-2 d-block animate__animated animate__bounce animate__infinite"></i>
+            <p class="fs-5">Selecciona un entrenamiento y su respectiva fecha arriba para desplegar la lista de asistencia.</p>
+        </div>
+    }
 </div>
 
 @section Scripts {

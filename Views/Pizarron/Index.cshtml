@@ -1,120 +1,58 @@
-﻿@model IEnumerable<dynamic>
+﻿@model List<TrainingsDashboard.Models.Areas>
 
-<link rel="stylesheet" href="https://cloudflare.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
 
 <div class="container-fluid">
-    <div class="card rounded rounded-3 title-glass p-3">
-        
-        <!-- Encabezado -->
-        <div class="card mb-4 p-3 shadow-lg border-1 rounded-pill title-glass">
-            <h2 class="m-0 text-start fw-bold">Métricas y Porcentajes de Asistencia</h2>
-        </div>
+    <!-- Encabezado Principal -->
+    <div class="card mb-4 p-3 shadow-lg border card-glass">
+        <h2 class="m-0 text-start fw-bold">Cumplimiento de Capacitación por Área y Turno</h2>
+    </div>
+    <div class="card card-glass border bg-white p-3">
 
-        <!-- Panel de Filtros Colectivos (Ajustado a PizarronController) -->
-        <div class="row mb-4 align-items-end bg-light p-3 rounded-4 mx-1 border">
-            <div class="col-12 mb-2">
-                <span class="fw-bold text-secondary small uppercase"><i class="fas fa-filter me-1"></i> Segmentar Estadísticas</span>
+        <!-- CONTROL SUPERIOR: NAVEGADOR DE ÁREAS Y TURNOS AUTOMÁTICO -->
+        <div class="card mb-4 p-3 border card-glass">
+            <div class="row align-items-center">
+                <!-- Botón Anterior -->
+                <div class="col-auto">
+                    <button type="button" id="btnPrevArea" class="btn btn-outline-primary rounded-circle p-2" style="width: 45px; height: 45px;">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </div>
+
+                <!-- Indicador de Área Activa -->
+                <div class="col text-center">
+                    <h3 id="txtAreaActiva" class="fw-extrabold text-primary m-0 area-badge-nav">Cargando área...</h3>
+                </div>
+
+                <!-- Botón Siguiente -->
+                <div class="col-auto">
+                    <button type="button" id="btnNextArea" class="btn btn-outline-primary rounded-circle p-2" style="width: 45px; height: 45px;">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
-            <form method="get" action="@Url.Action("DashboardAsistencia", "Pizarron")" id="formFiltrosDashboard" class="row g-3 w-100 m-0">
-                
-                <!-- Filtro por Área -->
-                <div class="col-12 col-md-4">
-                    <label class="form-label small fw-bold text-muted">Filtrar por Área:</label>
-                    <select name="areaId" class="form-select rounded-pill shadow-sm change-submit">
-                        <option value="">-- Todas las Áreas --</option>
-                        @foreach (var item in ViewBag.ListaAreas as List<SelectListItem>)
-                        {
-                            <!option value="@item.Value" @(item.Selected ? "selected" : "")>@item.Text</!option>
-                        }
-                    </select>
+
+            <!-- Barra inferior de controles multimedia e Indicador de Turno -->
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                <div>
+                    <button type="button" id="btnPlayPause" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm">
+                        <i class="fas fa-pause me-1"></i> Pausar Rotación
+                    </button>
                 </div>
 
-                <!-- Filtro por Turno -->
-                <div class="col-12 col-md-4">
-                    <label class="form-label small fw-bold text-muted">Filtrar por Turno:</label>
-                    <select name="turnoId" class="form-select rounded-pill shadow-sm change-submit">
-                        <option value="">-- Todos los Turnos --</option>
-                        @foreach (var item in ViewBag.ListaTurnos as List<SelectListItem>)
-                        {
-                            <!option value="@item.Value" @(item.Selected ? "selected" : "")>@item.Text</!option>
-                        }
-                    </select>
+                <!-- INDICADOR DINÁMICO DE TURNO ACTIVADO POR JAVASCRIPT (IDs Corregidos según tu BD) -->
+                <div class="d-flex gap-2" id="contenedorFiltroVisualTurnos">
+                    <span class="badge bg-secondary badge-turno-activo opacity-50" id="badge-t-2">Primer Turno</span>
+                    <span class="badge bg-secondary badge-turno-activo opacity-50" id="badge-t-3">Segundo Turno</span>
+                    <span class="badge bg-secondary badge-turno-activo opacity-50" id="badge-t-4">Tercer Turno</span>
                 </div>
-
-                <!-- Botón de Limpieza Completa -->
-                <div class="col-12 col-md-4 text-md-end">
-                    <a href="@Url.Action("DashboardAsistencia", "Pizarron")" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm fw-bold">
-                        <i class="fas fa-undo-alt me-1"></i> Restablecer
-                    </a>
-                </div>
-            </form>
+            </div>
         </div>
 
-        <!-- Rejilla Dinámica de Tarjetas (Cards) -->
-        <div class="row g-4">
-            @if (Model != null && Model.Any())
-            {
-                foreach (var item in Model)
-                {
-                    string colorBarra = "bg-danger"; 
-                    if (item.PorcentajeAsistencia >= 85) { colorBarra = "bg-success"; } 
-                    else if (item.PorcentajeAsistencia >= 50) { colorBarra = "bg-warning text-dark"; } 
-
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                        <div class="card h-100 shadow-sm p-3 border-0 rounded-4 bg-white d-flex flex-column justify-content-between">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div class="avatar bg-primary-subtle text-primary rounded-3 p-2">
-                                        <i class="fas fa-chart-pie fa-lg"></i>
-                                    </div>
-                                    <div class="text-end">
-                                        <h3 class="fw-bold m-0 text-dark">@item.PorcentajeAsistencia%</h3>
-                                        <small class="text-muted extra-small fw-bold">CUMPLIMIENTO</small>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <h6 class="fw-bold text-primary mb-1 text-truncate" title="@item.Nombre">@item.Nombre</h6>
-                                    <p class="text-muted small m-0 text-truncate-2" style="font-size: 0.8rem; height: 38px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                        @(string.IsNullOrEmpty(item.Descripcion) ? "Sin descripción registrada." : item.Descripcion)
-                                    </p>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="progress rounded-pill shadow-inner" style="height: 10px;">
-                                        <div class="progress-bar progress-bar-striped progress-bar-animated @colorBarra" 
-                                             role="progressbar" 
-                                             style="width: @item.PorcentajeAsistencia%" 
-                                             aria-valuenow="@item.PorcentajeAsistencia" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="border-top pt-2 mt-2 bg-light px-2 py-1 rounded border">
-                                <div class="d-flex justify-content-between align-items-center extra-small mb-1" style="font-size: 0.8rem;">
-                                    <span class="text-muted"><i class="fas fa-user-check me-1 text-success"></i> Asistieron:</span>
-                                    <span class="fw-bold text-dark">@item.Asistieron</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center extra-small" style="font-size: 0.8rem;">
-                                    <span class="text-muted"><i class="fas fa-users me-1 text-secondary"></i> Totales Agendados:</span>
-                                    <span class="fw-bold text-dark">@item.Convocados</span>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="col-12 text-center p-5 text-muted">
-                    <i class="fas fa-folder-open fa-3x mb-3 text-secondary"></i>
-                    <h5 class="fw-bold">Sin datos para mostrar</h5>
-                    <p class="small m-0">No se encontraron registros de entrenamientos que coincidan con el área o turno seleccionados.</p>
-                </div>
-            }
+        <!-- SECCIÓN INFERIOR: CONTENEDOR DINÁMICO DE CARDS -->
+        <div class="row g-4" id="contenedorTarjetasMétricas">
+            <!-- Cargado dinámicamente mediante AJAX -->
         </div>
 
     </div>
@@ -124,10 +62,158 @@
     <script src="https://jquery.com"></script>
     <script>
         $(document).ready(function () {
-            // Envío automático al cambiar de opción
-            $('.change-submit').on('change', function () {
-                $('#formFiltrosDashboard').submit();
+            const areas = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Select(a => new { id = a.ID, nombre = a.Nombre })));
+
+            let areaIndice = 0;
+            let turnoActual = 2; // AJUSTE CRÍTICO: Inicia en ID 2 (Primer Turno) según tu BD
+            let temporizadorCiclo = null;
+            let rotacionActiva = true;
+            const tiempoSubIntervalo = 10000; // 10 segundos por Turno
+
+            const $txtArea = $('#txtAreaActiva');
+            const $contenedorCards = $('#contenedorTarjetasMétricas');
+            const $btnPlayPause = $('#btnPlayPause');
+            const $btnPrev = $('#btnPrevArea');
+            const $btnNext = $('#btnNextArea');
+
+            if (areas.length === 0) {
+                $txtArea.text("No hay áreas con datos registrados.");
+                $contenedorCards.html('<div class="col-12 text-center p-5 text-muted"><p>No se encontraron entrenamientos programados activos.</p></div>');
+                return;
+            }
+
+            function cargarMétricasKiosco() {
+                const area = areas[areaIndice];
+
+                // 1. Actualizar el título de la pantalla
+                $txtArea.text(area.nombre);
+
+                // 2. Resaltar visualmente qué turno se está evaluando usando tus IDs reales (2, 3, 4)
+                $('.badge-turno-activo').removeClass('bg-primary text-white').addClass('bg-secondary opacity-50');
+                $(`#badge-t-${turnoActual}`).removeClass('bg-secondary opacity-50').addClass('bg-primary text-white');
+
+                // Obtener el nombre legible del turno para los mensajes de la tarjeta
+                let nombreTurnoTexto = "Primer Turno";
+                if(turnoActual === 3) nombreTurnoTexto = "Segundo Turno";
+                if(turnoActual === 4) nombreTurnoTexto = "Tercer Turno";
+
+                // 3. Mostrar spinner de carga rápida
+                $contenedorCards.html('<div class="col-12 text-center p-5"><div class="spinner-border text-primary spinner-border-sm" role="status"></div><small class="ms-2 text-muted">Cargando métricas...</small></div>');
+
+                $.ajax({
+                    url: '/Pizarron/ObtenerMetricasPorArea',
+                    type: 'GET',
+                    data: { areaId: area.id, turnoId: turnoActual },
+                    success: function (data) {
+                        $contenedorCards.empty();
+
+                        if (data.length === 0) {
+                            $contenedorCards.html(`
+                                <div class="col-12 text-center p-5 text-muted">
+                                    <i class="fas fa-folder-open fa-2x mb-2 text-secondary"></i>
+                                    <h6 class="fw-bold">Sin registros</h6>
+                                    <p class="small m-0">El área de <strong>${area.nombre}</strong> no registra datos en el <strong>${nombreTurnoTexto}</strong>.</p>
+                                </div>
+                            `);
+                            return;
+                        }
+
+                        data.forEach(item => {
+                            let colorBarra = "bg-danger";
+                            if (item.porcentajeAsistencia >= 85) { colorBarra = "bg-success"; }
+                            else if (item.porcentajeAsistencia >= 50) { colorBarra = "bg-warning text-dark"; }
+
+                            const cardHtml = `
+                                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                    <div class="card h-100 p-3 border card-glass bg-white d-flex flex-column justify-content-between card-metric">
+                                        <div>
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="avatar bg-primary-subtle text-primary rounded-3 p-1 px-2 small fw-bold">
+                                                    <i class="fas fa-clock"></i> ${turnoActual === 2 ? 'T1' : turnoActual === 3 ? 'T2' : 'T3'}
+                                                </div>
+                                                <div class="text-end">
+                                                    <h4 class="fw-bold m-0 text-dark">${item.porcentajeAsistencia}%</h4>
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <h6 class="fw-bold text-primary mb-1 text-truncate" title="${item.nombre}">${item.nombre}</h6>
+                                                <p class="text-muted small m-0 text-truncate" style="font-size: 0.75rem;">${item.descripcion}</p>
+                                            </div>
+                                            <div class="progress rounded-pill progress-inner" style="height: 8px;">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated ${colorBarra}" style="width: ${item.porcentajeAsistencia}%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="border-top pt-2 mt-2 bg-light px-2 py-1 rounded border" style="font-size: 0.75rem;">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Asistieron:</span><span class="fw-bold">${item.asistieron}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Convocados:</span><span class="fw-bold">${item.convocados}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            $contenedorCards.append(cardHtml);
+                        });
+                    },
+                    error: function () {
+                        $contenedorCards.html('<div class="col-12 text-center p-4 text-danger"><p class="small m-0">Error de conexión.</p></div>');
+                    }
+                });
+            }
+
+            // LÓGICA REFACTORIZADA PARA SEGUIR LA SECUENCIA DE IDs (2 -> 3 -> 4)
+            function ejecutarCicloKiosco() {
+                destruirCiclo();
+                temporizadorCiclo = setInterval(function () {
+                    if (rotacionActiva) {
+                        turnoActual++; // Incrementa de 2 a 3, luego a 4
+
+                        if (turnoActual > 4) { // AJUSTE CRÍTICO: Si supera el ID 4 (Tercer Turno), se reinicia
+                            turnoActual = 2;   // Regresa al ID 2 (Primer Turno)
+                            areaIndice = (areaIndice + 1) % areas.length; // Cambia de área
+                        }
+
+                        cargarMétricasKiosco();
+                    }
+                }, tiempoSubIntervalo);
+            }
+
+            function destruirCiclo() {
+                if (temporizadorCiclo) clearInterval(temporizadorCiclo);
+            }
+
+            // CONTROLES MANUALES (Saltan directo al Primer Turno [ID 2] del área seleccionada)
+            $btnNext.on('click', function () {
+                turnoActual = 2;
+                areaIndice = (areaIndice + 1) % areas.length;
+                cargarMétricasKiosco();
+                if (rotacionActiva) ejecutarCicloKiosco();
             });
+
+            $btnPrev.on('click', function () {
+                turnoActual = 2;
+                areaIndice = (areaIndice - 1 + areas.length) % areas.length;
+                cargarMétricasKiosco();
+                if (rotacionActiva) ejecutarCicloKiosco();
+            });
+
+            $btnPlayPause.on('click', function () {
+                rotacionActiva = !rotacionActiva;
+                if (rotacionActiva) {
+                    $(this).removeClass('btn-warning text-dark').addClass('btn-success').html('<i class="fas fa-pause me-1"></i> Pausar Rotación');
+                    ejecutarCicloKiosco();
+                } else {
+                    $(this).removeClass('btn-success').addClass('btn-warning text-dark').html('<i class="fas fa-play me-1"></i> Reanudar Transición');
+                    destruirCiclo();
+                }
+            });
+
+            // EJECUCIÓN INICIAL
+            cargarMétricasKiosco();
+            ejecutarCicloKiosco();
         });
     </script>
 }
+

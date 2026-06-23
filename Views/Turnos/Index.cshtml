@@ -3,62 +3,59 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 
-<div class="row">
-    <h2 class="text-start">Turnos <i class="bi bi-calendar-week"></i></h2>
-    <hr class="border border-dark border-0 mb-4 opacity-100">
+<div class="card mb-3 p-3 border card-glass">
+    <h2 class="m-0 text-start fw-bold">Turnos</h2>
 </div>
 
-<div class="row">
-    <div class="card mb-4 mt-3 p-4 rounded-3 shadow-lg">
-        <div class="row mt-2">
-            <div class="col-12">
-                <button class="btn btn-success mb-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#CreateTurnoModal">
-                    <i class="bi bi-person-plus"></i>
-                    Nuevo Turno
-                </button>
+<div class="card mb-4 p-3 border card-glass">
+    <div class="row mt-2">
+        <div class="col-12">
+            <button class="btn btn-success mb-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#CreateTurnoModal">
+                <i class="bi bi-person-plus"></i>
+                Nuevo Turno
+            </button>
+        </div>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row dt-row mt-3">
+            <div class="table-responsive col-sm-12">
+                <table id="Turnos" class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Turno</th>
+                            <th>Codigo</th>
+                            <th>Horario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.NombreTurno</td>
+                                <td>@item.CodigodeTurno</td>
+                                <td>@item.Horarios</td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm rounded-pill"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteConfirmModal"
+                                            onclick="setDeleteId(@item.ID)">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
-
-        @if (Model != null && Model.Any())
-        {
-            <div class="row dt-row mt-3">
-                <div class="table-responsive col-sm-12">
-                    <table id="Turnos" class="table table-striped table-bordered">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Turno</th>
-                                <th>Codigo</th>
-                                <th>Horario</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in Model)
-                            {
-                                <tr>
-                                    <td>@item.NombreTurno</td>
-                                    <td>@item.CodigodeTurno</td>
-                                    <td>@item.Horarios</td>
-                                    <td>
-                                        <button type="button" class="btn btn-danger btn-sm rounded-pill"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#deleteConfirmModal"
-                                                onclick="setDeleteId(@item.ID)">
-                                            <i class="bi bi-trash"></i> Eliminar
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        }
-        else
-        {
-            <p>No hay turnos registrados.</p>
-        }
-    </div>
+    }
+    else
+    {
+        <p>No hay turnos registrados.</p>
+    }
 </div>
 @await Html.PartialAsync("_CreateTurnoModal", new TrainingsDashboard.Models.Turnos())
 

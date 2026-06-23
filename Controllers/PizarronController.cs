@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using TrainingsDashboard.Models;
 
 namespace TrainingsDashboard.Controllers
@@ -11,63 +10,75 @@ namespace TrainingsDashboard.Controllers
         {
             _context = context;
         }
-        // GET: Pizarron/DashboardAsistencia
-        public IActionResult Index(int? areaId, int? turnoId)
+        // GET: Pizarron/Index
+        public IActionResult Index()
         {
-            // 1. Cargar catálogos para los selectores de filtrado
-            ViewBag.ListaAreas = _context.Areas
-                .Select(a => new SelectListItem { Value = a.ID.ToString(), Text = a.Nombre, Selected = a.ID == areaId })
-                .ToList();
-
-            ViewBag.ListaTurnos = _context.Turnos
-                .Select(t => new SelectListItem { Value = t.ID.ToString(), Text = t.NombreTurno, Selected = t.ID == turnoId })
-                .ToList();
-
-            // 2. Consulta base de programaciones
-            var query = _context.EntrenamientosProgramados.AsQueryable();
-
-            // 3. Aplicar filtros dinámicos basados en el perfil del Empleado
-            if (areaId.HasValue && areaId > 0)
+            try
             {
-                query = query.Where(p => p.AreaID == areaId);
+                var areasConDatos = _context.EntrenamientosProgramados
+                    .Where(p => p.AreaID.HasValue)
+                    .Select(p => p.AreaID.Value)
+                    .Distinct()
+                    .ToList();
+
+                var areas = _context.Areas
+                    .Where(a => areasConDatos.Contains(a.ID))
+                    .OrderBy(a => a.Nombre)
+                    .ToList();
+
+                return View(areas ?? new List<TrainingsDashboard.Models.Areas>());
             }
-            if (turnoId.HasValue && turnoId > 0)
+            catch (Exception)
             {
-                query = query.Where(p => p.TurnoID == turnoId);
+                return View(new List<TrainingsDashboard.Models.Areas>());
             }
-
-            var registrosFiltrados = query.ToList();
-
-            // 4. Traer todos los entrenamientos para cruzarlos con las estadísticas
-            var entrenamientos = _context.Entrenamientos.ToList();
-
-            // 5. Construir las métricas calculadas
-            var estadisticasCursos = entrenamientos.Select(e =>
-            {
-                var registrosDelCurso = registrosFiltrados.Where(p => p.EntrenamientoID == e.Id).ToList();
-
-                int convocados = registrosDelCurso.Count;
-                int asistieron = registrosDelCurso.Count(p => p.Status == 2 || p.FechaAsistencia.HasValue);
-
-                double porcentaje = convocados > 0 ? Math.Round((double)asistieron / convocados * 100, 1) : 0;
-
-                return new
-                {
-                    CursoId = e.Id,
-                    Nombre = e.Nombre,
-                    Descripcion = e.Descripcion,
-                    Limite = e.Limite ?? 0,
-                    Convocados = convocados,
-                    Asistieron = asistieron,
-                    PorcentajeAsistencia = porcentaje
-                };
-            }).Where(x => x.Convocados > 0).ToList();
-
-            ViewBag.AreaSeleccionada = areaId;
-            ViewBag.TurnoSeleccionado = turnoId;
-
-            return View(estadisticasCursos);
         }
+
+        // GET: Pizarron/ObtenerMetricasPorArea
+        [HttpGet]
+        public IActionResult ObtenerMetricasPorArea(int areaId, int turnoId)
+        {
+            try
+            {
+                // 1. Filtramos estrictamente por el Área y el Turno solicitados por la rotación de JavaScript
+                var registrosFiltrados = _context.EntrenamientosProgramados
+                    .Where(p => p.AreaID == areaId && p.TurnoID == turnoId)
+                    .ToList();
+
+                var entrenamientos = _context.Entrenamientos.ToList();
+
+                // 2. Construimos las estadísticas asegurando la separación estricta de turnos
+                var estadisticas = entrenamientos.Select(e =>
+                {
+                    // CORRECCIÓN CRÍTICA: Filtramos por EntrenamientoID Y por TurnoID en los registros ya en memoria
+                    var registrosDelCurso = registrosFiltrados
+                        .Where(p => p.EntrenamientoID == e.Id && p.TurnoID == turnoId)
+                        .ToList();
+
+                    int convocados = registrosDelCurso.Count;
+                    int asistieron = registrosDelCurso.Count(p => p.Status == 2 || p.FechaAsistencia.HasValue);
+                    double porcentaje = convocados > 0 ? Math.Round((double)asistieron / convocados * 100, 1) : 0;
+
+                    return new
+                    {
+                        nombre = e.Nombre,
+                        descripcion = e.Descripcion ?? "Sin descripción registrada.",
+                        convocados = convocados,
+                        asistieron = asistieron,
+                        porcentajeAsistencia = porcentaje
+                    };
+                }).Where(x => x.convocados > 0).ToList(); // Solo incluimos cursos que tengan personal convocado en este turno específico
+
+                return Json(estadisticas);
+            }
+            catch (Exception)
+            {
+                return BadRequest(new List<object>());
+            }
+        }
+
+
+
 
     }
 }

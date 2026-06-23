@@ -22,7 +22,8 @@ body {
 }
 
 .body-gradient {
-    background: linear-gradient(135deg, rgb(35, 74, 143), rgb(216, 104, 99), rgb(233, 236, 239), rgb(35, 74, 143) );
+    background: linear-gradient(135deg, rgb(245, 245, 245), rgb(216, 104, 99), rgb(233, 236, 239), rgb(245, 245, 245) );
+    /*background: linear-gradient(135deg, rgb(35, 74, 143), rgb(216, 104, 99), rgb(233, 236, 239), rgb(216, 104, 99) );*/
     background-size: 400% 400%;
     animation: gradientMove 14s ease infinite;
     min-height: 100vh;
