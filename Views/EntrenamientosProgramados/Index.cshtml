@@ -3,15 +3,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <div class="container-fluid">
-    <div class="card mb-4 p-3 shadow-lg border card-glass">
+    <div class="card mb-4 p-3 style-glass">
         <h2 class="m-0 text-start fw-bold">Programación de Entrenamientos</h2>
     </div>
-    <div class="card border card-glass p-3">
+    <div class="card border style-glass p-3">
         <div class="row mb-4 align-items-center">
             <div class="col-auto">
                 <button class="btn btn-success shadow-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#ModalNuevaProgramacion">
                     <i class="fas fa-calendar-plus"></i> Programar Entrenamiento
                 </button>
+            </div>
+            <div class="col-auto">
+                <a asp-action="ExportarExcel" asp-controller="EntrenamientosProgramados" class="btn btn-primary shadow-lg rounded-pill px-4">
+                    <i class="fas fa-file-excel me-1"></i> Exportar Excel
+                </a>
             </div>
             <div class="col">
                 <input type="text" id="searchInput" class="form-control shadow-lg rounded-pill" placeholder="Buscar por entrenamiento...">
@@ -67,16 +72,19 @@
                 ? "text-danger fw-bold"
                 : "text-success";
 
-                // Serializamos los empleados de este grupo a un atributo JSON para cargarlos en el modal sin ir al servidor
+                // PROYECCIÓN ACTUALIZADA: Incluimos la fecha de programación en el objeto JSON
                 var listaEmpleadosJson = System.Text.Json.JsonSerializer.Serialize(grupo.Select(p => new
                 {
+                    id = p.ID,
                     empleado = (ViewBag.ListaEmpleados as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.EmpleadoID?.ToString())?.Text ?? "Sin Empleado",
                     area = (ViewBag.ListaAreas as List<SelectListItem>)?.FirstOrDefault(x => x.Value == p.AreaID?.ToString())?.Text ?? "S/A",
-                    asistio = p.FechaAsistencia.HasValue
+                    status = p.Status ?? 1,
+                    fechaProg = p.FechaProgramacion?.ToString("yyyy-MM-dd") // <-- AGREGADO: Fecha en formato ISO para el cálculo de tiempo
                 }));
 
+
                 <div class="col-12 col-sm-6 col-md-4 col-lg-3 programacion-card" data-search-course="@entrenamientoNombre.ToLower()">
-                    <div class="card card-area  shadow-sm p-3 text-center position-relative h-100 d-flex flex-column justify-content-between">
+                    <div class="card card-area p-3 text-center position-relative h-100 d-flex flex-column justify-content-between">
                         <div>
                             <button class="settings-btn">
                                 <i class="fas fa-cog"></i>
@@ -146,7 +154,8 @@
 
 <!-- NUEVO MODAL: LISTA DE PERSONAL INSCRITO -->
 <div class="modal fade" id="ModalVerPersonal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <!-- <-- Cambio aquí -->
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-dark text-white rounded-top-4 p-3">
                 <h5 class="modal-title fw-bold"><i class="fas fa-users me-2"></i>Personal Inscrito</h5>
@@ -167,6 +176,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- MODAL: CONFIRMAR ELIMINACIÓN (CANCELACIÓN DE PROGRAMACIÓN GRUPAL) -->
 <div class="modal fade" id="ModalEliminarProgramacion" tabindex="-1" aria-labelledby="ModalEliminarProgramacionLabel" aria-hidden="true">
@@ -235,7 +245,8 @@
                         <div class="col-12 col-md-6 border-end">
                             <div class="mb-2">
                                 <label class="form-label fw-bold text-primary small uppercase"><i class="fas fa-search me-1"></i> 1. Cargar por Área</label>
-                                <select id="selectArea" class="form-select rounded-pill form-select-sm">
+                                <!-- Busca tu selectArea y agrégale el atributo disabled por defecto -->
+                                <select id="selectArea" class="form-select rounded-pill form-select-sm" disabled>
                                     <option value="" selected>-- Selecciona un Área --</option>
                                     @if (ViewBag.ListaAreas != null)
                                     {
@@ -306,7 +317,6 @@
             initMenuFlotante();
             initModuloEliminar();
             initSupervisorAutomatico();
-            initModuloScannerGrupal();
         });
 
         // ==========================================
@@ -403,181 +413,218 @@
     </script>
 
     <script>
-        $(document).ready(function () {
-            const $selectArea = $('#selectArea');
-            const $contenedorLista = $('#contenedorListaEmpleados');
-            const $contenedorGrupoFinal = $('#contenedorGrupoFinal');
-            const $inputsOcultos = $('#inputsOcultosEmpleados');
-            const $contador = $('#contadorSeleccionados');
-            const $chkSeleccionarTodos = $('#chkSeleccionarTodos');
-            const $contenedorTodos = $('#contenedorSeleccionarTodos');
-            const $btnLimpiarTodo = $('#btnLimpiarTodo');
+            $(document).ready(function () {
+        const $selectArea = $('#selectArea');
+        const $contenedorLista = $('#contenedorListaEmpleados');
+        const $contenedorGrupoFinal = $('#contenedorGrupoFinal');
+        const $inputsOcultos = $('#inputsOcultosEmpleados');
+        const $contador = $('#contadorSeleccionados');
+        const $chkSeleccionarTodos = $('#chkSeleccionarTodos');
+        const $contenedorTodos = $('#contenedorSeleccionarTodos');
+        const $btnLimpiarTodo = $('#btnLimpiarTodo');
 
-            let idsCargadosEnPantalla = new Set();
+        // Selectores del encabezado principal
+        const $selectCurso = $('select[name="EntrenamientoID"]');
+        const $inputFecha = $('input[name="FechaProgramacion"]');
 
-            // 1. Cargar empleados desde el servidor (Izquierda)
-            $selectArea.on('change', function () {
-                const areaId = $(this).val();
-                const areaNombre = $(this).find('option:selected').text();
-                if (!areaId) return;
+        let idsCargadosEnPantalla = new Set();
 
-                $('#placeholderLista').remove();
-                $contenedorTodos.show();
-                $btnLimpiarTodo.show();
+        // ===================================================================================
+        // FLUJO CONTROLADO: Activar o resetear el selector de áreas según los datos superiores
+        // ===================================================================================
+        function verificarCamposPrincipales() {
+            const cursoId = $selectCurso.val();
+            const fechaVal = $inputFecha.val();
 
-                const $spinner = $('<div id="tempSpinner" class="text-center p-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Buscando...</div>');
-                $contenedorLista.append($spinner);
+            if (cursoId && fechaVal) {
+                $selectArea.removeAttr('disabled'); // Desbloquear áreas si ya hay curso y fecha
+            } else {
+                $selectArea.attr('disabled', 'disabled'); // Bloquear si falta alguno
+                resetearContenedoresPorCambio();
+            }
+        }
 
-                $.ajax({
-                    url: '/EntrenamientosProgramados/ObtenerPorArea',
-                    type: 'GET',
-                    data: { areaId: areaId },
-                    success: function (empleados) {
-                        $('#tempSpinner').remove();
+        // Escuchar si cambian el curso o la fecha en la parte de arriba
+        $selectCurso.on('change', verificarCamposPrincipales);
+        $inputFecha.on('change', verificarCamposPrincipales);
 
-                        if (empleados.length === 0) {
-                            alert("No hay empleados activos en esta área.");
-                            evaluarEstadosVacios();
-                            return;
-                        }
+        // Rutina de limpieza inmediata si el usuario cambia el curso o la fecha a mitad de la operación
+        function resetearContenedoresPorCambio() {
+            $contenedorLista.empty();
+            $contenedorGrupoFinal.empty();
+            idsCargadosEnPantalla.clear();
+            $contenedorTodos.hide();
+            $btnLimpiarTodo.hide();
+            $chkSeleccionarTodos.prop('checked', false);
+            $selectArea.val("");
 
-                        empleados.forEach(emp => {
-                            if (!idsCargadosEnPantalla.has(emp.id)) {
-                                idsCargadosEnPantalla.add(emp.id);
+            $contenedorLista.html('<div class="text-muted small p-4 text-center" id="placeholderLista">Selecciona un área arriba para traer su personal.</div>');
+            $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
+            actualizarInputsYContador();
+        }
 
-                                const itemHtml = `
-                                    <label class="list-group-item d-flex align-items-center py-2 border-bottom" data-id="${emp.id}" id="item-disp-${emp.id}">
-                                        <input class="form-check-input me-3 chk-empleado" type="checkbox"
-                                               value="${emp.id}"
-                                               data-nombre="${emp.nombre}"
-                                               data-num="${emp.numeroEmpleado ?? 'S/N'}"
-                                               data-area-id="${emp.areaId ?? 0}"
-                                               data-area-nombre="${areaNombre}"
-                                               data-turno="${emp.turnoId ?? 0}">
-                                        <div class="small text-truncate">
-                                            <span class="fw-bold text-primary">#${emp.numeroEmpleado ?? 'S/N'}</span> - ${emp.nombre}
-                                        </div>
-                                    </label>
-                                `;
-                                $contenedorLista.append(itemHtml);
-                            }
-                        });
+        // ===================================================================================
+        // 1. Cargar empleados desde el servidor (Izquierda - SOLO DISPONIBLES REALES)
+        // ===================================================================================
+        $selectArea.on('change', function () {
+            const areaId = $(this).val();
+            const areaNombre = $(this).find('option:selected').text();
+            if (!areaId) return;
 
-                        $chkSeleccionarTodos.prop('checked', false);
-                        $selectArea.val("");
-                    },
-                    error: function () {
-                        $('#tempSpinner').remove();
-                        alert("Error de red.");
+            const entrenamientoId = $selectCurso.val();
+            const fechaProg = $inputFecha.val();
+
+            $('#placeholderLista').remove();
+            $contenedorTodos.show();
+            $btnLimpiarTodo.show();
+
+            const $spinner = $('<div id="tempSpinner" class="text-center p-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Buscando...</div>');
+            $contenedorLista.append($spinner);
+
+            $.ajax({
+                url: '/EntrenamientosProgramados/ObtenerPorArea',
+                type: 'GET',
+                data: { areaId: areaId, entrenamientoId: entrenamientoId, fecha: fechaProg },
+                success: function (empleados) {
+                    $('#tempSpinner').remove();
+
+                    if (empleados.length === 0) {
+                        alert("No hay más empleados disponibles en esta área (o todos ya tienen programado este entrenamiento en esta fecha).");
                         evaluarEstadosVacios();
+                        return;
                     }
-                });
+
+                    empleados.forEach(emp => {
+                        if (!idsCargadosEnPantalla.has(emp.id)) {
+                            idsCargadosEnPantalla.add(emp.id);
+
+                            const itemHtml = `
+                                <label class="list-group-item d-flex align-items-center py-2 border-bottom" data-id="${emp.id}" id="item-disp-${emp.id}" style="cursor: pointer;">
+                                    <input class="form-check-input me-3 chk-empleado" type="checkbox"
+                                           value="${emp.id}"
+                                           data-nombre="${emp.nombre}"
+                                           data-num="${emp.numeroEmpleado ?? 'S/N'}"
+                                           data-area-id="${areaId}"
+                                           data-area-nombre="${areaNombre}"
+                                           data-turno="${emp.turnoId ?? 0}">
+                                    <div class="small text-truncate">
+                                        <span class="fw-bold text-primary">#${emp.numeroEmpleado ?? 'S/N'}</span> - ${emp.nombre}
+                                    </div>
+                                </label>
+                            `;
+                            $contenedorLista.append(itemHtml);
+                        }
+                    });
+
+                    const total = $('.chk-empleado').length;
+                    const marcados = $('.chk-empleado:checked').length;
+                    $chkSeleccionarTodos.prop('checked', total === marcados && total > 0);
+
+                    $selectArea.val("");
+                },
+                error: function () {
+                    $('#tempSpinner').remove();
+                    alert("Error de red.");
+                    evaluarEstadosVacios();
+                }
             });
+        });
 
-            // 2. Evento al marcar/desmarcar casillas (Traspaso dinámico a la derecha)
-            $contenedorLista.on('change', '.chk-empleado', function () {
-                const $chk = $(this);
-                const empId = $chk.val();
-                const empNombre = $chk.data('nombre');
-                const empNum = $chk.data('num');
-                const areaId = $chk.data('area-id');
-                const areaNombre = $chk.data('area-nombre');
+        // ===================================================================================
+        // 2. Evento al marcar/desmarcar casillas (Traspaso dinámico a la derecha)
+        // ===================================================================================
+        $contenedorLista.on('change', '.chk-empleado', function () {
+            const $chk = $(this);
+            const empId = $chk.val();
+            const empNombre = $chk.data('nombre');
+            const empNum = $chk.data('num');
+            const areaId = $chk.data('area-id');
+            const areaNombre = $chk.data('area-nombre');
 
-                $('#placeholderGrupoFinal').remove();
+            $('#placeholderGrupoFinal').remove();
 
-                if ($chk.is(':checked')) {
-                    // --- AGREGAR A LA DERECHA AGRUPADO ---
-                    // Buscar si ya existe el contenedor visual para esa área
-                    let $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
+            if ($chk.is(':checked')) {
+                let $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
 
-                    if ($bloqueArea.length === 0) {
-                        // Si no existe el área a la derecha, creamos su título y su lista interna
-                        const estructuraAreaHtml = `
-                            <div class="mb-3 bloque-area-final" id="grupo-area-${areaId}">
-                                <div class="fw-bold text-dark border-bottom pb-1 small mb-1 d-flex align-items-center">
-                                    <i class="fas fa-folder-open text-warning me-2"></i> ${areaNombre}
-                                </div>
-                                <div class="lista-interna-area ps-2"></div>
+                if ($bloqueArea.length === 0) {
+                    const estructuraAreaHtml = `
+                        <div class="mb-3 bloque-area-final" id="grupo-area-${areaId}">
+                            <div class="fw-bold text-dark border-bottom pb-1 small mb-1 d-flex align-items-center" style="font-size: 0.75rem;">
+                                <i class="fas fa-folder-open text-warning me-2"></i> ${areaNombre}
                             </div>
-                        `;
-                        $contenedorGrupoFinal.append(estructuraAreaHtml);
-                        $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
-                    }
+                            <div class="lista-interna-area ps-2"></div>
+                        </div>
+                    `;
+                    $contenedorGrupoFinal.append(estructuraAreaHtml);
+                    $bloqueArea = $contenedorGrupoFinal.find(`#grupo-area-${areaId}`);
+                }
 
-                    // Inyectamos la etiqueta del empleado dentro de su área correspondiente
+                if ($bloqueArea.find(`#final-emp-${empId}`).length === 0) {
                     const empleadoFinalHtml = `
-                        <div class="d-flex justify-content-between align-items-center mb-1 small text-muted badge-emp-final" id="final-emp-${empId}">
-                            <span class="text-truncate" style="max-width: 85%;">
+                        <div class="d-flex justify-content-between align-items-center mb-1 small text-muted badge-emp-final p-1 rounded bg-light" id="final-emp-${empId}">
+                            <span class="text-truncate" style="max-width: 85%; font-size: 0.75rem;">
                                 <span class="fw-bold text-secondary">#${empNum}</span> - ${empNombre}
                             </span>
                             <button type="button" class="btn-close p-0 btn-remover-emp" data-id="${empId}" style="font-size: 0.65rem; width: auto; height: auto;"></button>
                         </div>
                     `;
                     $bloqueArea.find('.lista-interna-area').append(empleadoFinalHtml);
-
-                } else {
-                    // --- REMOVER DE LA DERECHA SI SE DESMARCA ---
-                    $contenedorGrupoFinal.find(`#final-emp-${empId}`).remove();
-                    limpiarBloquesAreasVacios();
                 }
 
-                // Sincronizar estado del "Marcar Todos"
-                const total = $('.chk-empleado').length;
-                const marcados = $('.chk-empleado:checked').length;
-                $chkSeleccionarTodos.prop('checked', total === marcados);
-
-                actualizarInputsYContador();
-            });
-
-            // 3. Botón "X" de remoción rápida desde la lista final (Derecha)
-            $contenedorGrupoFinal.on('click', '.btn-remover-emp', function () {
-                const empId = $(this).data('id');
-                // Desmarcar casilla de la izquierda (eso gatilla automáticamente la remoción visual)
-                $contenedorLista.find(`#item-disp-${empId} .chk-empleado`).prop('checked', false).trigger('change');
-            });
-
-            // 4. Marcar todos los de la izquierda
-            $chkSeleccionarTodos.on('change', function () {
-                const estado = $(this).is(':checked');
-                $('.chk-empleado').prop('checked', estado).trigger('change');
-            });
-
-            // 5. Botón Limpiar Todo
-            $btnLimpiarTodo.on('click', function () {
-                if (confirm("¿Vaciar por completo la selección actual?")) {
-                    $contenedorLista.empty();
-                    $contenedorGrupoFinal.empty();
-                    idsCargadosEnPantalla.clear();
-                    $contenedorTodos.hide();
-                    $btnLimpiarTodo.hide();
-                    $chkSeleccionarTodos.prop('checked', false);
-
-                    $contenedorLista.html('<div class="text-muted small p-4 text-center" id="placeholderLista">Selecciona un área arriba para traer su personal.</div>');
-                    $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
-
-                    actualizarInputsYContador();
-                }
-            });
-
-            // Rutina para borrar títulos de áreas que se quedaron sin empleados adentro
-            function limpiarBloquesAreasVacios() {
-                $('.bloque-area-final').each(function () {
-                    if ($(this).find('.badge-emp-final').length === 0) {
-                        $(this).remove();
-                    }
-                });
-                if ($('.badge-emp-final').length === 0 && $contenedorGrupoFinal.find('#placeholderGrupoFinal').length === 0) {
-                    $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
-                }
+            } else {
+                $contenedorGrupoFinal.find(`#final-emp-${empId}`).remove();
+                limpiarBloquesAreasVacios();
             }
 
-            function evaluarEstadosVacios() {
-                if ($('.list-group-item').length === 0) {
-                    $btnLimpiarTodo.click();
-                }
-            }
+            const total = $('.chk-empleado').length;
+            const marcados = $('.chk-empleado:checked').length;
+            $chkSeleccionarTodos.prop('checked', total === marcados && total > 0);
 
-            // 6. Sincronizar inputs ocultos estructurados para C#
+            actualizarInputsYContador();
+        });
+
+        // 3. Botón "X" de remoción rápida desde la lista final (Derecha)
+        $contenedorGrupoFinal.on('click', '.btn-remover-emp', function () {
+            const empId = $(this).data('id');
+            $contenedorLista.find(`#item-disp-${empId} .chk-empleado`).prop('checked', false).trigger('change');
+        });
+
+        // 4. Marcar todos los de la izquierda
+        $chkSeleccionarTodos.on('change', function () {
+            const estado = $(this).is(':checked');
+            $('.chk-empleado').prop('checked', estado).trigger('change');
+        });
+
+        // 5. Botón Limpiar Todo
+        $btnLimpiarTodo.on('click', function () {
+            if (confirm("¿Vaciar por completo la selección actual?")) {
+                resetearContenedoresPorCambio();
+            }
+        });
+
+        // 6. Rutina para borrar títulos de áreas vacías
+        function limpiarBloquesAreasVacios() {
+            $('.bloque-area-final').each(function () {
+                if ($(this).find('.badge-emp-final').length === 0) {
+                    $(this).remove();
+                }
+            });
+            if ($('.badge-emp-final').length === 0 && $contenedorGrupoFinal.find('#placeholderGrupoFinal').length === 0) {
+                $contenedorGrupoFinal.html('<div class="text-muted small p-4 text-center" id="placeholderGrupoFinal">Marca las casillas de la izquierda para armar el grupo aquí.</div>');
+            }
+        }
+
+        // 7. Evalúa si la lista de disponibles quedó vacía
+        function evaluarEstadosVacios() {
+            if ($contenedorLista.children('.list-group-item').length === 0) {
+                $contenedorLista.html('<div class="text-muted small p-4 text-center" id="placeholderLista">Selecciona un área arriba para traer su personal.</div>');
+                $contenedorTodos.hide();
+                $btnLimpiarTodo.hide();
+                $chkSeleccionarTodos.prop('checked', false);
+
+            }
+        }
+                    // 8. Sincronizar inputs ocultos estructurados con índices mapeados para C#
             function actualizarInputsYContador() {
                 $inputsOcultos.empty();
                 const $seleccionados = $('.chk-empleado:checked');
@@ -588,6 +635,7 @@
                     const areaId = $(elemento).data('area-id');
                     const turnoId = $(elemento).data('turno');
 
+                    // Aseguramos la estructura exacta indexada que requiere tu método POST Crear
                     const inputsHtml = `
                         <input type="hidden" name="EmpleadosIds[${index}]" value="${empleadoId}" />
                         <input type="hidden" name="AreasIds[${index}]" value="${areaId}" />
@@ -596,31 +644,20 @@
                     $inputsOcultos.append(inputsHtml);
                 });
             }
-        });
 
+            // 9. Limpiar completamente el modal al cerrarlo o cancelarlo
+            $('#ModalNuevaProgramacion').on('hidden.bs.modal', function () {
+                $selectCurso.val("");
+                $inputFecha.val("");
+                $selectArea.attr('disabled', 'disabled');
+                resetearContenedoresPorCambio();
+            });
+        });
     </script>
     <script>
+         var $ultimoBotonClickeado = null;
+
         $(document).ready(function () {
-            // Buscar todas las alertas de éxito o advertencia en la página
-            const $alertasAutoCierre = $('.alert-success, .alert-warning');
-
-            if ($alertasAutoCierre.length > 0) {
-                // Configurar un temporizador de 10,000 milisegundos (10 segundos)
-                setTimeout(function () {
-                    $alertasAutoCierre.each(function () {
-                        // Instanciar el control nativo de alertas de Bootstrap 5
-                        const alertaBootstrap = bootstrap.Alert.getOrCreateInstance(this);
-                        if (alertaBootstrap) {
-                            alertaBootstrap.close(); // Cierra con la animación fade/show integrada
-                        }
-                    });
-                }, 10000);
-            }
-        });
-
-    </script>
-    <script>
-            $(document).ready(function () {
             // 1. Temporizador de 10 segundos para cerrar alertas automáticamente
             const $alertas = $('.alert-autocierre');
             if ($alertas.length > 0) {
@@ -648,44 +685,194 @@
                 });
             });
 
-            // 3. EVENTO DINÁMICO: Cargar personal en el segundo modal
-            $(document).on('click', '.btn-ver-personal', function () {
+            // 3. EVENTO DINÁMICO: Cargar personal agrupado por área en el segundo modal
+             $(document).on('click', '.btn-ver-personal', function () {
+                // Guardamos la referencia nativa del botón de la tarjeta principal
+                $ultimoBotonClickeado = this;
+
                 const curso = $(this).data('curso');
                 const fecha = $(this).data('fecha');
-                const empleados = $(this).data('empleados'); // Trae el array serializado en JSON
+                let empleados = $(this).data('empleados');
 
-                // Asignar encabezados en el modal
+                if (typeof empleados === 'string') {
+                    try { empleados = JSON.parse(empleados); }
+                    catch (e) { console.error("Error al parsear empleados:", e); empleados = []; }
+                }
+
                 $('#modalPersonalCurso').text(curso);
                 $('#modalPersonalFecha').html(`<i class="far fa-calendar-alt me-1"></i> ${fecha}`);
 
-                // Limpiar contenedor e inyectar filas
                 const $lista = $('#modalContenedorLista');
                 $lista.empty();
 
-                empleados.forEach(emp => {
-                    const estatusAsistencia = emp.asistio
-                        ? '<span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 small"><i class="fas fa-check"></i> Asistió</span>'
-                        : '<span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-2 py-1 small"><i class="far fa-clock"></i> Pendiente</span>';
+                if (!empleados || empleados.length === 0) {
+                    $lista.append('<div class="text-center text-muted py-3 small">No hay personal inscrito en este curso.</div>');
+                } else {
+                    const areasAgrupadas = {};
+                    empleados.forEach(emp => {
+                        const nombreArea = emp.area || "Sin Área Especificada";
+                        if (!areasAgrupadas[nombreArea]) { areasAgrupadas[nombreArea] = []; }
+                        areasAgrupadas[nombreArea].push(emp);
+                    });
 
-                    const filaHtml = `
-                        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-bottom">
-                            <div class="text-truncate me-2" style="max-width: 70%;">
-                                <div class="fw-bold text-dark text-truncate small">${emp.empleado}</div>
-                                <small class="text-muted extra-small" style="font-size: 0.75rem;">Área: ${emp.area}</small>
+                    for (const area in areasAgrupadas) {
+                        $lista.append(`
+                            <div class="mt-3 mb-2 bg-light p-2 rounded-2 border-start border-primary border-3">
+                                <span class="fw-bold text-secondary small text-uppercase"><i class="fas fa-layer-group me-1"></i> ${area}</span>
+                                <span class="badge bg-secondary rounded-pill float-end small">${areasAgrupadas[area].length}</span>
                             </div>
-                            <div>
-                                ${estatusAsistencia}
-                            </div>
-                        </div>
-                    `;
-                    $lista.append(filaHtml);
-                });
+                        `);
 
-                // Mostrar el modal manualmente
-                const modalPersonal = new bootstrap.Modal(document.getElementById('ModalVerPersonal'));
+                        areasAgrupadas[area].forEach(emp => {
+                            let badgeAyudaVisual = '';
+                            let botonAsistencia = '';
+
+                            let esVencido = false;
+                            if (emp.fechaProg) {
+                                const fechaProgramada = new Date(emp.fechaProg + 'T00:00:00');
+                                const fechaHoy = new Date();
+                                fechaHoy.setHours(0,0,0,0);
+                                const diferenciaDias = Math.floor((fechaHoy.getTime() - fechaProgramada.getTime()) / (1000 * 60 * 60 * 24));
+                                if (diferenciaDias > 7) { esVencido = true; }
+                            }
+
+                            if (parseInt(emp.status) === 2) {
+                                badgeAyudaVisual = `<span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 extra-small ms-2 span-badge-estado" style="font-size: 0.7rem;"><i class="fas fa-check-circle me-1"></i>Asistió</span>`;
+                                botonAsistencia = `<span class="text-success small me-2"><i class="fas fa-check"></i> Listo</span>`;
+                            } else if (parseInt(emp.status) === 1 && esVencido) {
+                                badgeAyudaVisual = `<span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-2 py-1 extra-small ms-2 span-badge-estado" style="font-size: 0.7rem;"><i class="fas fa-exclamation-circle me-1"></i>Vencido</span>`;
+                                botonAsistencia = `<button type="button" class="btn btn-sm btn-outline-success rounded-pill me-2 btn-marcar-asistencia" data-id="${emp.id}"><i class="fas fa-check"></i></button>`;
+                            } else {
+                                badgeAyudaVisual = `<span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-2 py-1 extra-small ms-2 span-badge-estado" style="font-size: 0.7rem;"><i class="far fa-clock me-1"></i>Pendiente</span>`;
+                                botonAsistencia = `<button type="button" class="btn btn-sm btn-outline-success rounded-pill me-2 btn-marcar-asistencia" data-id="${emp.id}"><i class="fas fa-check"></i></button>`;
+                            }
+
+                            const filaHtml = `
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0 border-bottom">
+                                    <div class="me-2" style="max-width: 80%;">
+                                        <div class="fw-bold text-dark small d-inline-flex align-items-center flex-wrap gap-1">
+                                            <span>${emp.empleado}</span>
+                                            ${badgeAyudaVisual}
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center flex-shrink-0">
+                                        <div class="contenedor-accion-asistencia">
+                                            ${botonAsistencia}
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill btn-eliminar-empleado" data-id="${emp.id}">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            $lista.append(filaHtml);
+                        });
+                    }
+                }
+
+                const modalElement = document.getElementById('ModalVerPersonal');
+                let modalPersonal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
                 modalPersonal.show();
             });
+
+                    // ACCIÓN: Marcar Asistencia individual vía AJAX
+        $(document).on('click', '.btn-marcar-asistencia', function () {
+            const $btn = $(this);
+            const idProgramacion = $btn.data('id');
+            const $fila = $btn.closest('.list-group-item');
+
+            if (confirm("¿Confirmar asistencia para este empleado?")) {
+                $.post('/EntrenamientosProgramados/MarcarAsistencia', { id: idProgramacion })
+                    .done(function (response) {
+                        if (response.success) {
+                            // 1. Cambio visual inmediato dentro del modal abierto
+                            $fila.find('.span-badge-estado').replaceWith(`
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 extra-small ms-2 span-badge-estado" style="font-size: 0.7rem;">
+                                    <i class="fas fa-check-circle me-1"></i>Asistió
+                                </span>`);
+                            $btn.replaceWith(`<span class="text-success small me-2"><i class="fas fa-check"></i> Listo</span>`);
+
+                            // 2. SOLUCIÓN REAL DEL PROBLEMA: Actualizar la memoria caché de jQuery en la tarjeta
+                            if ($ultimoBotonClickeado) {
+                                // Forzamos a jQuery a darnos su copia de memoria activa actual
+                                let empleados = $($ultimoBotonClickeado).data('empleados');
+
+                                // Si por alguna razón sigue siendo un string, lo transformamos a objeto interactivo
+                                if (typeof empleados === 'string') {
+                                    try { empleados = JSON.parse(empleados); } catch(e) { empleados = []; }
+                                }
+
+                                if (empleados && empleados.length > 0) {
+                                    // Buscamos al alumno modificado
+                                    const empModificar = empleados.find(e => e.id == idProgramacion);
+                                    if (empModificar) {
+                                        empModificar.status = 2; // <-- Cambiamos su estado a 2 (Asistió) en la memoria
+
+                                        // CRÍTICO: Reinyectamos el objeto mutado de regreso en la memoria interna de jQuery
+                                        $($ultimoBotonClickeado).data('empleados', empleados);
+
+                                        // También respaldamos en el atributo de texto del HTML por seguridad
+                                        $($ultimoBotonClickeado).attr('data-empleados', JSON.stringify(empleados));
+                                    }
+                                }
+                            }
+                        } else {
+                            alert(response.message || "Error al registrar la asistencia.");
+                        }
+                    })
+                    .fail(function () {
+                        alert("Error de comunicación con el servidor.");
+                    });
+            }
         });
 
+        // ACCIÓN: Eliminar empleado del curso vía AJAX
+        $(document).on('click', '.btn-eliminar-empleado', function () {
+            const $btn = $(this);
+            const idProgramacion = $btn.data('id');
+            const $fila = $btn.closest('.list-group-item');
+
+            if (confirm("¿Estás seguro de que deseas eliminar a este empleado de este curso programado?")) {
+                $.post('/EntrenamientosProgramados/EliminarEmpleadoCurso', { id: idProgramacion })
+                    .done(function (response) {
+                        if (response.success) {
+                            // 1. Desvanecer la fila del modal
+                            $fila.fadeOut(400, function () {
+                                $(this).remove();
+                                if ($('#modalContenedorLista').children('.list-group-item').length === 0) {
+                                    $('#modalContenedorLista').append('<div class="text-center text-muted py-3 small">No hay personal inscrito en este curso.</div>');
+                                }
+                            });
+
+                            // 2. SOLUCIÓN REAL DEL PROBLEMA: Removerlo de la memoria caché de jQuery en la tarjeta
+                            if ($ultimoBotonClickeado) {
+                                let empleados = $($ultimoBotonClickeado).data('empleados');
+
+                                if (typeof empleados === 'string') {
+                                    try { empleados = JSON.parse(empleados); } catch(e) { empleados = []; }
+                                }
+
+                                if (empleados && empleados.length > 0) {
+                                    // Filtramos el arreglo eliminando por completo al usuario borrado
+                                    empleados = empleados.filter(e => e.id != idProgramacion);
+
+                                    // CRÍTICO: Guardamos la lista limpia en la memoria interna de jQuery
+                                    $($ultimoBotonClickeado).data('empleados', empleados);
+
+                                    // Respaldamos en el HTML duro
+                                    $($ultimoBotonClickeado).attr('data-empleados', JSON.stringify(empleados));
+                                }
+                            }
+                        } else {
+                            alert(response.message || "Error al eliminar el empleado.");
+                        }
+                    })
+                    .fail(function () {
+                        alert("Error de comunicación con el servidor.");
+                    });
+            }
+        });
+
+        });
     </script>
 }

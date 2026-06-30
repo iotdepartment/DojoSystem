@@ -5,13 +5,12 @@
 
 <div class="container-fluid">
     <!-- Encabezado Principal -->
-    <div class="card mb-4 p-3 shadow-lg border card-glass">
+    <div class="card mb-4 p-3 style-glass">
         <h2 class="m-0 text-start fw-bold">Cumplimiento de Capacitación por Área y Turno</h2>
     </div>
-    <div class="card card-glass border bg-white p-3">
 
         <!-- CONTROL SUPERIOR: NAVEGADOR DE ÁREAS Y TURNOS AUTOMÁTICO -->
-        <div class="card mb-4 p-3 border card-glass">
+        <div class="card mb-4 p-3 style-glass">
             <div class="row align-items-center">
                 <!-- Botón Anterior -->
                 <div class="col-auto">
@@ -34,7 +33,7 @@
             </div>
 
             <!-- Barra inferior de controles multimedia e Indicador de Turno -->
-            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-2">
                 <div>
                     <button type="button" id="btnPlayPause" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-sm">
                         <i class="fas fa-pause me-1"></i> Pausar Rotación
@@ -54,8 +53,6 @@
         <div class="row g-4" id="contenedorTarjetasMétricas">
             <!-- Cargado dinámicamente mediante AJAX -->
         </div>
-
-    </div>
 </div>
 
 @section Scripts {
@@ -63,12 +60,15 @@
     <script>
         $(document).ready(function () {
             const areas = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Select(a => new { id = a.ID, nombre = a.Nombre })));
-
+            
             let areaIndice = 0;
-            let turnoActual = 2; // AJUSTE CRÍTICO: Inicia en ID 2 (Primer Turno) según tu BD
+            let turnoActual = 2; 
             let temporizadorCiclo = null;
             let rotacionActiva = true;
-            const tiempoSubIntervalo = 10000; // 10 segundos por Turno
+            const tiempoSubIntervalo = 20000; // 20 segundos por Turno
+
+            // Arreglo global para almacenar los intervalos de autoscroll de cada tarjeta
+            let intervalosScroll = [];
 
             const $txtArea = $('#txtAreaActiva');
             const $contenedorCards = $('#contenedorTarjetasMétricas');
@@ -78,26 +78,20 @@
 
             if (areas.length === 0) {
                 $txtArea.text("No hay áreas con datos registrados.");
-                $contenedorCards.html('<div class="col-12 text-center p-5 text-muted"><p>No se encontraron entrenamientos programados activos.</p></div>');
                 return;
             }
 
             function cargarMétricasKiosco() {
                 const area = areas[areaIndice];
 
-                // 1. Actualizar el título de la pantalla
                 $txtArea.text(area.nombre);
 
-                // 2. Resaltar visualmente qué turno se está evaluando usando tus IDs reales (2, 3, 4)
                 $('.badge-turno-activo').removeClass('bg-primary text-white').addClass('bg-secondary opacity-50');
                 $(`#badge-t-${turnoActual}`).removeClass('bg-secondary opacity-50').addClass('bg-primary text-white');
 
-                // Obtener el nombre legible del turno para los mensajes de la tarjeta
-                let nombreTurnoTexto = "Primer Turno";
-                if(turnoActual === 3) nombreTurnoTexto = "Segundo Turno";
-                if(turnoActual === 4) nombreTurnoTexto = "Tercer Turno";
+                // Detener y limpiar los autoscrolls anteriores antes de borrar las tarjetas
+                limpiarAutoscrolls();
 
-                // 3. Mostrar spinner de carga rápida
                 $contenedorCards.html('<div class="col-12 text-center p-5"><div class="spinner-border text-primary spinner-border-sm" role="status"></div><small class="ms-2 text-muted">Cargando métricas...</small></div>');
 
                 $.ajax({
@@ -112,7 +106,7 @@
                                 <div class="col-12 text-center p-5 text-muted">
                                     <i class="fas fa-folder-open fa-2x mb-2 text-secondary"></i>
                                     <h6 class="fw-bold">Sin registros</h6>
-                                    <p class="small m-0">El área de <strong>${area.nombre}</strong> no registra datos en el <strong>${nombreTurnoTexto}</strong>.</p>
+                                    <p class="small m-0">No se registran datos en este turno.</p>
                                 </div>
                             `);
                             return;
@@ -123,9 +117,28 @@
                             if (item.porcentajeAsistencia >= 85) { colorBarra = "bg-success"; }
                             else if (item.porcentajeAsistencia >= 50) { colorBarra = "bg-warning text-dark"; }
 
+                            let listaPendientesHtml = "";
+                            if (item.empleadosPendientes && item.empleadosPendientes.length > 0) {
+                                item.empleadosPendientes.forEach(emp => {
+                                    listaPendientesHtml += `
+                                        <li class="mb-1 py-1 border-bottom border-light text-truncate" style="font-size: 0.75rem;">
+                                            <span class="fw-bold text-danger">#${emp.num}</span> - ${emp.nombre}
+                                        </li>
+                                    `;
+                                });
+                            } else {
+                                listaPendientesHtml = `
+                                    <li class="text-muted text-center py-3" style="font-size: 0.75rem; font-style: italic;">
+                                        <i class="fas fa-check-circle text-success me-1"></i> ¡Turno Completado!
+                                    </li>
+                                `;
+                            }
+
+                            const totalFaltantes = item.empleadosPendientes ? item.empleadosPendientes.length : 0;
+
                             const cardHtml = `
-                                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                                    <div class="card h-100 p-3 border card-glass bg-white d-flex flex-column justify-content-between card-metric">
+                                <div class="col-12 col-sm-6 col-md-4 col-lg-3 animate__animated animate__fadeIn">
+                                    <div class="card h-100 p-3 style-glass d-flex flex-column justify-content-between card-metric" style="min-height: 400px;">
                                         <div>
                                             <div class="d-flex justify-content-between align-items-start mb-2">
                                                 <div class="avatar bg-primary-subtle text-primary rounded-3 p-1 px-2 small fw-bold">
@@ -135,20 +148,36 @@
                                                     <h4 class="fw-bold m-0 text-dark">${item.porcentajeAsistencia}%</h4>
                                                 </div>
                                             </div>
+
                                             <div class="mb-2">
                                                 <h6 class="fw-bold text-primary mb-1 text-truncate" title="${item.nombre}">${item.nombre}</h6>
                                                 <p class="text-muted small m-0 text-truncate" style="font-size: 0.75rem;">${item.descripcion}</p>
                                             </div>
-                                            <div class="progress rounded-pill progress-inner" style="height: 8px;">
+
+                                            <div class="progress rounded-pill progress-inner mb-3" style="height: 8px;">
                                                 <div class="progress-bar progress-bar-striped progress-bar-animated ${colorBarra}" style="width: ${item.porcentajeAsistencia}%"></div>
                                             </div>
+
+                                            <div class="mb-2">
+                                                <div class="text-muted extra-small fw-bold mb-1 d-flex justify-content-between" style="font-size: 0.7rem; text-transform: uppercase;">
+                                                    <span><i class="fas fa-user-clock me-1"></i> Personal Pendiente:</span>
+                                                    <span class="text-danger fw-bold">${totalFaltantes}</span>
+                                                </div>
+                                                <!-- Agregamos la clase js-auto-scroll para que el script la identifique -->
+                                                <div class="border rounded-3 p-2 bg-light js-auto-scroll" style="max-height: 230px; min-height: 130px; overflow-y: auto;">
+                                                    <ul class="list-unstyled mb-0 ps-0">
+                                                        ${listaPendientesHtml}
+                                                    </ul>
+                                                </div>
+                                            </div>
                                         </div>
+
                                         <div class="border-top pt-2 mt-2 bg-light px-2 py-1 rounded border" style="font-size: 0.75rem;">
                                             <div class="d-flex justify-content-between">
-                                                <span class="text-muted">Asistieron:</span><span class="fw-bold">${item.asistieron}</span>
+                                                <span class="text-muted">Asistieron:</span><span class="fw-bold text-success">${item.asistieron}</span>
                                             </div>
                                             <div class="d-flex justify-content-between">
-                                                <span class="text-muted">Convocados:</span><span class="fw-bold">${item.convocados}</span>
+                                                <span class="text-muted">Convocados:</span><span class="fw-bold text-dark">${item.convocados}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -156,25 +185,86 @@
                             `;
                             $contenedorCards.append(cardHtml);
                         });
+
+                        // 4. NUEVO: Activar el autoscroll en todas las listas recién renderizadas
+                        iniciarAutoscrolls();
                     },
                     error: function () {
-                        $contenedorCards.html('<div class="col-12 text-center p-4 text-danger"><p class="small m-0">Error de conexión.</p></div>');
+                        $contenedorCards.html('<div class="col-12 text-center p-4 text-danger"><p>Error de conexión.</p></div>');
                     }
                 });
             }
 
-            // LÓGICA REFACTORIZADA PARA SEGUIR LA SECUENCIA DE IDs (2 -> 3 -> 4)
+            // ==========================================
+            // FUNCIONES PARA EL AUTOSCROLL DE PENDIENTES
+            // ==========================================
+            function iniciarAutoscrolls() {
+                $('.js-auto-scroll').each(function () {
+                    const el = this; // Contenedor div con scroll (.js-auto-scroll)
+
+                    // Solo activa el scroll si el contenido real es más alto que el recuadro de 130px
+                    if (el.scrollHeight > el.clientHeight) {
+
+                        const intervalo = setInterval(function () {
+                            if (!rotacionActiva) return; // Si la rotación global está pausada, no mover
+
+                            el.scrollTop += 1; // Avanza 1 pixel hacia abajo
+
+                            // Si llegó al fondo (tolerancia de 2px), reiniciar al tope
+                            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+                                clearInterval(intervalo);
+
+                                // Espera 1.5 segundos en el fondo para alcanzar a leer el final
+                                setTimeout(() => {
+                                    el.scrollTop = 0;
+                                    // Vuelve a encender el bucle infinito para esta tarjeta
+                                    iniciarAutoscrollsParaElemento(el);
+                                }, 1500);
+                            }
+                        }, 45); // Velocidad: 45ms por pixel
+
+                        intervalosScroll.push(intervalo);
+                    }
+                });
+            }
+
+            // Función auxiliar fija para re-enganchar el scroll individual tras el reinicio
+            function iniciarAutoscrollsParaElemento(el) {
+                const intervalo = setInterval(function () {
+                    if (!rotacionActiva) return;
+
+                    el.scrollTop += 1;
+
+                    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+                        clearInterval(intervalo);
+                        setTimeout(() => {
+                            el.scrollTop = 0;
+                            iniciarAutoscrollsParaElemento(el);
+                        }, 1500);
+                    }
+                }, 45);
+
+                intervalosScroll.push(intervalo);
+            }
+
+            // Detener todos los cronómetros en memoria antes de cambiar de área/turno
+            function limpiarAutoscrolls() {
+                intervalosScroll.forEach(int => clearInterval(int));
+                intervalosScroll = [];
+            }
+
+            // ==========================================
+            // LÓGICA DE ROTACIÓN AUTOMÁTICA GLOBAL
+            // ==========================================
             function ejecutarCicloKiosco() {
                 destruirCiclo();
                 temporizadorCiclo = setInterval(function () {
                     if (rotacionActiva) {
-                        turnoActual++; // Incrementa de 2 a 3, luego a 4
-
-                        if (turnoActual > 4) { // AJUSTE CRÍTICO: Si supera el ID 4 (Tercer Turno), se reinicia
+                        turnoActual++;
+                        if (turnoActual > 4) { // Si supera el ID 4 (Tercer Turno), cambia de área
                             turnoActual = 2;   // Regresa al ID 2 (Primer Turno)
-                            areaIndice = (areaIndice + 1) % areas.length; // Cambia de área
+                            areaIndice = (areaIndice + 1) % areas.length;
                         }
-
                         cargarMétricasKiosco();
                     }
                 }, tiempoSubIntervalo);
@@ -184,7 +274,6 @@
                 if (temporizadorCiclo) clearInterval(temporizadorCiclo);
             }
 
-            // CONTROLES MANUALES (Saltan directo al Primer Turno [ID 2] del área seleccionada)
             $btnNext.on('click', function () {
                 turnoActual = 2;
                 areaIndice = (areaIndice + 1) % areas.length;
@@ -210,10 +299,12 @@
                 }
             });
 
-            // EJECUCIÓN INICIAL
+            // DISPARO INICIAL AL CARGAR LA PÁGINA
             cargarMétricasKiosco();
             ejecutarCicloKiosco();
         });
     </script>
 }
+
+
 
